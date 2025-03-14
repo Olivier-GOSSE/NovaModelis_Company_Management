@@ -43,8 +43,11 @@ def create_admin_user():
     """
     db = SessionLocal()
     try:
-        # Check if admin user exists
-        admin_user = db.query(User).filter(User.username == config.ADMIN_USERNAME).first()
+        # Check if admin user exists by username or email
+        admin_user = db.query(User).filter(
+            (User.username == config.ADMIN_USERNAME) | 
+            (User.email == config.ADMIN_EMAIL)
+        ).first()
         
         if not admin_user:
             # Create admin user
