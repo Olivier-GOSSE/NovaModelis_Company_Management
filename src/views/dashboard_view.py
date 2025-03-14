@@ -4,15 +4,24 @@ Dashboard view for the application.
 import os
 import sys
 import logging
+import random
 from datetime import datetime, timedelta
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QFrame, QGridLayout, QScrollArea, QTableWidget, QTableWidgetItem,
-    QHeaderView, QSizePolicy
+    QHeaderView, QSizePolicy, QButtonGroup
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon, QFont, QColor, QPainter
 from sqlalchemy import func
+
+# For the graph
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Add the parent directory to sys.path to allow imports
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/../..'))
@@ -22,6 +31,16 @@ from models import (
     Customer, CustomerEmail, EmailStatus, Printer
 )
 import config
+
+
+class MplCanvas(FigureCanvas):
+    """
+    Canvas for matplotlib figure.
+    """
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        super(MplCanvas, self).__init__(self.fig)
 
 
 class StatCard(QFrame):
@@ -116,6 +135,113 @@ class DashboardView(QWidget):
         header_layout.addWidget(refresh_btn)
         
         main_layout.addLayout(header_layout)
+        
+        # Graph section
+        graph_frame = QFrame()
+        graph_frame.setObjectName("graphFrame")
+        graph_frame.setStyleSheet("""
+            #graphFrame {
+                background-color: #1E293B;
+                border-radius: 8px;
+            }
+        """)
+        graph_frame.setMinimumHeight(300)
+        
+        graph_layout = QVBoxLayout(graph_frame)
+        graph_layout.setContentsMargins(15, 15, 15, 15)
+        graph_layout.setSpacing(10)
+        
+        # Graph header
+        graph_header = QHBoxLayout()
+        graph_title = QLabel("Financial Overview")
+        graph_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
+        
+        # Graph type buttons
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+        
+        self.graph_button_group = QButtonGroup(self)
+        
+        credit_btn = QPushButton("Credit")
+        credit_btn.setCheckable(True)
+        credit_btn.setChecked(True)  # Default selected
+        credit_btn.setCursor(Qt.PointingHandCursor)
+        credit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #475569;
+            }
+            QPushButton:checked {
+                background-color: #3B82F6;
+            }
+        """)
+        
+        debit_btn = QPushButton("Debit")
+        debit_btn.setCheckable(True)
+        debit_btn.setCursor(Qt.PointingHandCursor)
+        debit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #475569;
+            }
+            QPushButton:checked {
+                background-color: #3B82F6;
+            }
+        """)
+        
+        purchases_btn = QPushButton("Purchases")
+        purchases_btn.setCheckable(True)
+        purchases_btn.setCursor(Qt.PointingHandCursor)
+        purchases_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #475569;
+            }
+            QPushButton:checked {
+                background-color: #3B82F6;
+            }
+        """)
+        
+        self.graph_button_group.addButton(credit_btn, 1)
+        self.graph_button_group.addButton(debit_btn, 2)
+        self.graph_button_group.addButton(purchases_btn, 3)
+        
+        button_layout.addWidget(credit_btn)
+        button_layout.addWidget(debit_btn)
+        button_layout.addWidget(purchases_btn)
+        
+        graph_header.addWidget(graph_title)
+        graph_header.addStretch()
+        graph_header.addLayout(button_layout)
+        
+        graph_layout.addLayout(graph_header)
+        
+        # Graph canvas
+        self.graph_canvas = MplCanvas(self, width=5, height=4, dpi=100)
+        graph_layout.addWidget(self.graph_canvas)
+        
+        # Connect button signals
+        self.graph_button_group.buttonClicked.connect(self.update_graph)
+        
+        main_layout.addWidget(graph_frame)
         
         # Stats cards
         stats_layout = QHBoxLayout()
@@ -361,10 +487,97 @@ class DashboardView(QWidget):
         
         main_layout.addLayout(content_layout)
     
+    def update_graph(self, button):
+        """
+        Update the graph based on the selected button.
+        
+        Args:
+            button: The button that was clicked.
+        """
+        # Clear the graph
+        self.graph_canvas.axes.clear()
+        
+        # Set dark background style for the graph
+        self.graph_canvas.fig.set_facecolor('#1E293B')
+        self.graph_canvas.axes.set_facecolor('#1E293B')
+        self.graph_canvas.axes.tick_params(colors='#94A3B8')
+        self.graph_canvas.axes.spines['bottom'].set_color('#334155')
+        self.graph_canvas.axes.spines['top'].set_color('#334155')
+        self.graph_canvas.axes.spines['left'].set_color('#334155')
+        self.graph_canvas.axes.spines['right'].set_color('#334155')
+        self.graph_canvas.axes.xaxis.label.set_color('#94A3B8')
+        self.graph_canvas.axes.yaxis.label.set_color('#94A3B8')
+        self.graph_canvas.axes.title.set_color('#F8FAFC')
+        
+        # Get the current year and month
+        now = datetime.now()
+        current_year = now.year
+        previous_year = current_year - 1
+        
+        # Months for x-axis
+        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        
+        # Generate sample data for now (in a real app, this would come from the database)
+        # This would be replaced with actual data from the database in a real application
+        button_id = self.graph_button_group.id(button)
+        
+        # Generate random data for demonstration
+        if button_id == 1:  # Credit
+            current_year_data = [random.uniform(5000, 15000) for _ in range(12)]
+            previous_year_data = [random.uniform(4000, 12000) for _ in range(12)]
+            title = "Monthly Credit"
+            y_label = "Credit Amount ($)"
+        elif button_id == 2:  # Debit
+            current_year_data = [random.uniform(3000, 10000) for _ in range(12)]
+            previous_year_data = [random.uniform(2500, 9000) for _ in range(12)]
+            title = "Monthly Debit"
+            y_label = "Debit Amount ($)"
+        else:  # Purchases
+            current_year_data = [random.uniform(2000, 8000) for _ in range(12)]
+            previous_year_data = [random.uniform(1500, 7000) for _ in range(12)]
+            title = "Monthly Purchases"
+            y_label = "Purchase Amount ($)"
+        
+        # Plot the data
+        x = np.arange(len(months))
+        width = 0.35
+        
+        # Only show data up to the current month for the current year
+        current_month = now.month
+        current_year_plot_data = current_year_data[:current_month]
+        
+        # Plot previous year data
+        self.graph_canvas.axes.plot(x, previous_year_data, marker='o', linestyle='-', color='#94A3B8', 
+                                   linewidth=2, markersize=6, label=f'{previous_year}')
+        
+        # Plot current year data
+        self.graph_canvas.axes.plot(x[:current_month], current_year_plot_data, marker='o', linestyle='-', 
+                                   color='#3B82F6', linewidth=2, markersize=6, label=f'{current_year}')
+        
+        # Set labels and title
+        self.graph_canvas.axes.set_xlabel('Month')
+        self.graph_canvas.axes.set_ylabel(y_label)
+        self.graph_canvas.axes.set_title(title)
+        self.graph_canvas.axes.set_xticks(x)
+        self.graph_canvas.axes.set_xticklabels(months)
+        
+        # Add legend
+        self.graph_canvas.axes.legend(facecolor='#1E293B', edgecolor='#334155', labelcolor='#F8FAFC')
+        
+        # Add grid
+        self.graph_canvas.axes.grid(True, linestyle='--', alpha=0.3, color='#334155')
+        
+        # Update the canvas
+        self.graph_canvas.draw()
+    
     def refresh_data(self):
         """
         Refresh the dashboard data.
         """
+        # Update the graph
+        selected_button = self.graph_button_group.checkedButton()
+        if selected_button:
+            self.update_graph(selected_button)
         try:
             # Get statistics
             total_orders = self.db.query(Order).count()

@@ -29,11 +29,26 @@ class LoginWindow(QMainWindow):
     login_successful = Signal(User)
     
     def __init__(self):
+        # For window dragging
+        self.dragging = False
+        self.drag_position = None
         super().__init__()
         
         self.setWindowTitle(config.APP_NAME)
-        self.setMinimumSize(400, 500)
+        self.setFixedSize(400, 500)  # Fixed size instead of minimum size
         self.setWindowIcon(QIcon("src/resources/icons/logo.png"))
+        
+        # Set window flags to remove the resize handles
+        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
+        
+        # Set rounded corners using stylesheet
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #0F172A;
+                border-radius: 15px;
+                border: 1px solid #334155;
+            }
+        """)
         
         self.setup_ui()
     
@@ -50,6 +65,33 @@ class LoginWindow(QMainWindow):
         main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.setSpacing(20)
         main_layout.setAlignment(Qt.AlignCenter)
+        
+        # Add close button at the top right
+        close_btn_layout = QHBoxLayout()
+        close_btn_layout.setContentsMargins(0, 0, 0, 0)
+        close_btn_layout.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        
+        close_btn = QPushButton("×")  # Unicode multiplication sign as close icon
+        close_btn.setFixedSize(30, 30)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                font-size: 20px;
+                font-weight: bold;
+                border: none;
+                border-radius: 15px;
+            }
+            QPushButton:hover {
+                background-color: #EF4444;
+                color: #F8FAFC;
+            }
+        """)
+        close_btn.clicked.connect(self.close)
+        
+        close_btn_layout.addWidget(close_btn)
+        main_layout.addLayout(close_btn_layout)
         
         # Logo
         logo_layout = QHBoxLayout()
@@ -158,6 +200,40 @@ class LoginWindow(QMainWindow):
         version_label.setAlignment(Qt.AlignCenter)
         version_label.setStyleSheet("color: #64748B; font-size: 12px;")
         main_layout.addWidget(version_label)
+    
+    def mousePressEvent(self, event):
+        """
+        Handle mouse press event.
+        
+        Args:
+            event: The mouse press event.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """
+        Handle mouse move event.
+        
+        Args:
+            event: The mouse move event.
+        """
+        if event.buttons() & Qt.LeftButton and self.dragging:
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        """
+        Handle mouse release event.
+        
+        Args:
+            event: The mouse release event.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            event.accept()
     
     def login(self):
         """

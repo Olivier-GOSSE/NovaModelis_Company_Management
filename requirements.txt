@@ -1,8 +1,9 @@
 # Core dependencies
-PySide6==6.6.2
+PySide6==6.5.2
 SQLAlchemy==2.0.23
 bcrypt==4.0.1
 Pillow==10.1.0
+matplotlib==3.8.2
 
 # Development dependencies
 black==23.11.0
