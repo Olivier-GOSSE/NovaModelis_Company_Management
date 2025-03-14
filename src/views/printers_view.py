@@ -9,10 +9,11 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QFrame, QGridLayout, QScrollArea, QTableWidget, QTableWidgetItem,
     QHeaderView, QSizePolicy, QDialog, QLineEdit, QFormLayout,
-    QComboBox, QMessageBox, QSpinBox, QDoubleSpinBox
+    QComboBox, QMessageBox, QSpinBox, QDoubleSpinBox, QProgressBar
 )
 from PySide6.QtCore import Qt, Signal, Slot, QSize
 from PySide6.QtGui import QIcon, QFont, QColor, QPainter
+from sqlalchemy import func
 
 # Add the parent directory to sys.path to allow imports
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/../..'))
@@ -20,6 +21,45 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/../..'))
 from database.base import SessionLocal
 from models import Printer, PrinterStatus, PrintJob, PrintJobStatus
 import config
+
+
+class ProgressBarWidget(QWidget):
+    """
+    Custom widget for displaying a progress bar with a value label.
+    """
+    def __init__(self, progress_value, parent=None):
+        super().__init__(parent)
+        
+        # Main layout
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 0, 5, 0)
+        layout.setSpacing(5)
+        
+        # Progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(int(progress_value))
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                background-color: #334155;
+                border: none;
+                border-radius: 4px;
+                height: 12px;
+            }
+            QProgressBar::chunk {
+                background-color: #3B82F6;
+                border-radius: 4px;
+            }
+        """)
+        
+        # Value label
+        self.value_label = QLabel(f"{progress_value:.1f}%")
+        self.value_label.setStyleSheet("color: #F8FAFC;")
+        
+        # Add widgets to layout
+        layout.addWidget(self.progress_bar, 1)
+        layout.addWidget(self.value_label)
 
 
 class PrinterDetailsDialog(QDialog):
@@ -288,10 +328,12 @@ class PrintersView(QWidget):
         
         # Printers table
         self.printers_table = QTableWidget()
-        self.printers_table.setColumnCount(7)
+        self.printers_table.setColumnCount(6)
         self.printers_table.setHorizontalHeaderLabels([
-            "Name", "Model", "Manufacturer", "Build Volume", "Status", "IP Address", "Actions"
+            "Name", "Build Volume", "Status", "IP Address", "Operating Hours", "Actions"
         ])
+        # Set row height to make icons fully visible
+        self.printers_table.verticalHeader().setDefaultSectionSize(40)
         self.printers_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.printers_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
         self.printers_table.verticalHeader().setVisible(False)
@@ -352,6 +394,8 @@ class PrintersView(QWidget):
         self.jobs_table.setHorizontalHeaderLabels([
             "Job Name", "Printer", "Started", "Progress", "Est. Completion", "Actions"
         ])
+        # Set row height to make icons fully visible
+        self.jobs_table.verticalHeader().setDefaultSectionSize(40)
         self.jobs_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.jobs_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
         self.jobs_table.verticalHeader().setVisible(False)
@@ -385,6 +429,29 @@ class PrintersView(QWidget):
         
         main_layout.addWidget(jobs_frame)
     
+    def get_printer_operating_hours(self, printer_id):
+        """
+        Calculate the total operating hours for a printer.
+        
+        Args:
+            printer_id: The ID of the printer.
+            
+        Returns:
+            float: The total operating hours.
+        """
+        try:
+            # Get the sum of actual_print_time for completed print jobs
+            total_minutes = self.db.query(func.sum(PrintJob.actual_print_time)).filter(
+                PrintJob.printer_id == printer_id,
+                PrintJob.status == PrintJobStatus.COMPLETED
+            ).scalar() or 0
+            
+            # Convert minutes to hours
+            return round(total_minutes / 60, 1)
+        except Exception as e:
+            logging.error(f"Error calculating printer operating hours: {str(e)}")
+            return 0
+    
     def refresh_data(self):
         """
         Refresh the printers data.
@@ -400,25 +467,22 @@ class PrintersView(QWidget):
                 name_item = QTableWidgetItem(printer.name)
                 self.printers_table.setItem(i, 0, name_item)
                 
-                # Model
-                model_item = QTableWidgetItem(printer.model)
-                self.printers_table.setItem(i, 1, model_item)
-                
-                # Manufacturer
-                manufacturer_item = QTableWidgetItem(printer.manufacturer)
-                self.printers_table.setItem(i, 2, manufacturer_item)
-                
                 # Build volume
                 volume_item = QTableWidgetItem(printer.build_volume)
-                self.printers_table.setItem(i, 3, volume_item)
+                self.printers_table.setItem(i, 1, volume_item)
                 
                 # Status
                 status_item = QTableWidgetItem(printer.status.value.capitalize())
-                self.printers_table.setItem(i, 4, status_item)
+                self.printers_table.setItem(i, 2, status_item)
                 
                 # IP address
                 ip_item = QTableWidgetItem(printer.ip_address or "")
-                self.printers_table.setItem(i, 5, ip_item)
+                self.printers_table.setItem(i, 3, ip_item)
+                
+                # Operating hours
+                operating_hours = self.get_printer_operating_hours(printer.id)
+                hours_item = QTableWidgetItem(f"{operating_hours} h")
+                self.printers_table.setItem(i, 4, hours_item)
                 
                 # Actions
                 actions_widget = QWidget()
@@ -466,7 +530,7 @@ class PrintersView(QWidget):
                 actions_layout.addWidget(delete_btn)
                 actions_layout.addStretch()
                 
-                self.printers_table.setCellWidget(i, 6, actions_widget)
+                self.printers_table.setCellWidget(i, 5, actions_widget)
             
             # Get active print jobs
             active_jobs = self.db.query(PrintJob).filter(PrintJob.status == PrintJobStatus.PRINTING).all()
@@ -489,8 +553,8 @@ class PrintersView(QWidget):
                 self.jobs_table.setItem(i, 2, started_item)
                 
                 # Progress
-                progress_item = QTableWidgetItem(f"{job.progress:.1f}%")
-                self.jobs_table.setItem(i, 3, progress_item)
+                progress_widget = ProgressBarWidget(job.progress)
+                self.jobs_table.setCellWidget(i, 3, progress_widget)
                 
                 # Estimated completion
                 est_completion = job.estimated_completion_time
@@ -575,8 +639,8 @@ class PrintersView(QWidget):
         for i in range(self.printers_table.rowCount()):
             row_hidden = True
             
-            # Check if search text is in any of the first 6 columns
-            for j in range(6):
+            # Check if search text is in any of the first 5 columns
+            for j in range(5):
                 item = self.printers_table.item(i, j)
                 if item and search_text in item.text().lower():
                     row_hidden = False
