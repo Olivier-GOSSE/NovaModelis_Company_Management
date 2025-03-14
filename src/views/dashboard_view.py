@@ -104,8 +104,54 @@ class DashboardView(QWidget):
         """
         # Main layout
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Scroll area for the entire dashboard
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                background-color: #0F172A;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background-color: #1E293B;
+                width: 12px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #475569;
+                min-height: 20px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #64748B;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background-color: #1E293B;
+            }
+        """)
+        
+        # Create a widget to hold all dashboard content
+        dashboard_content = QWidget()
+        dashboard_content.setObjectName("dashboardContent")
+        dashboard_content.setStyleSheet("""
+            #dashboardContent {
+                background-color: #0F172A;
+            }
+        """)
+        
+        # Content layout
+        content_layout = QVBoxLayout(dashboard_content)
+        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setSpacing(20)
         
         # Header
         header_layout = QHBoxLayout()
@@ -134,7 +180,7 @@ class DashboardView(QWidget):
         header_layout.addStretch()
         header_layout.addWidget(refresh_btn)
         
-        main_layout.addLayout(header_layout)
+        content_layout.addLayout(header_layout)
         
         # Graph section
         graph_frame = QFrame()
@@ -241,7 +287,38 @@ class DashboardView(QWidget):
         # Connect button signals
         self.graph_button_group.buttonClicked.connect(self.update_graph)
         
-        main_layout.addWidget(graph_frame)
+        content_layout.addWidget(graph_frame)
+        
+        # E-commerce sales histogram
+        ecommerce_frame = QFrame()
+        ecommerce_frame.setObjectName("ecommerceFrame")
+        ecommerce_frame.setStyleSheet("""
+            #ecommerceFrame {
+                background-color: #1E293B;
+                border-radius: 8px;
+            }
+        """)
+        ecommerce_frame.setMinimumHeight(350)
+        
+        ecommerce_layout = QVBoxLayout(ecommerce_frame)
+        ecommerce_layout.setContentsMargins(15, 15, 15, 15)
+        ecommerce_layout.setSpacing(10)
+        
+        # Ecommerce header
+        ecommerce_header = QHBoxLayout()
+        ecommerce_title = QLabel("Ventes par site e-commerce (12 derniers mois)")
+        ecommerce_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
+        
+        ecommerce_header.addWidget(ecommerce_title)
+        ecommerce_header.addStretch()
+        
+        ecommerce_layout.addLayout(ecommerce_header)
+        
+        # Ecommerce canvas
+        self.ecommerce_canvas = MplCanvas(self, width=5, height=4, dpi=100)
+        ecommerce_layout.addWidget(self.ecommerce_canvas)
+        
+        content_layout.addWidget(ecommerce_frame)
         
         # Stats cards
         stats_layout = QHBoxLayout()
@@ -258,11 +335,11 @@ class DashboardView(QWidget):
         stats_layout.addWidget(self.customers_card)
         stats_layout.addWidget(self.printers_card)
         
-        main_layout.addLayout(stats_layout)
+        content_layout.addLayout(stats_layout)
         
-        # Content grid
-        content_layout = QGridLayout()
-        content_layout.setSpacing(15)
+        # Tables grid
+        tables_grid = QGridLayout()
+        tables_grid.setSpacing(15)
         
         # Recent orders
         orders_frame = QFrame()
@@ -480,12 +557,18 @@ class DashboardView(QWidget):
         
         messages_layout.addWidget(self.messages_table)
         
-        # Add widgets to content grid
-        content_layout.addWidget(orders_frame, 0, 0)
-        content_layout.addWidget(jobs_frame, 0, 1)
-        content_layout.addWidget(messages_frame, 1, 0, 1, 2)
+        # Add widgets to tables grid
+        tables_grid.addWidget(orders_frame, 0, 0)
+        tables_grid.addWidget(jobs_frame, 0, 1)
+        tables_grid.addWidget(messages_frame, 1, 0, 1, 2)
         
-        main_layout.addLayout(content_layout)
+        content_layout.addLayout(tables_grid)
+        
+        # Set the scroll area content
+        scroll_area.setWidget(dashboard_content)
+        
+        # Add scroll area to main layout
+        main_layout.addWidget(scroll_area)
     
     def update_graph(self, button):
         """
@@ -570,14 +653,82 @@ class DashboardView(QWidget):
         # Update the canvas
         self.graph_canvas.draw()
     
+    def update_ecommerce_histogram(self):
+        """
+        Update the e-commerce sales histogram.
+        """
+        # Clear the graph
+        self.ecommerce_canvas.axes.clear()
+        
+        # Set dark background style for the graph
+        self.ecommerce_canvas.fig.set_facecolor('#1E293B')
+        self.ecommerce_canvas.axes.set_facecolor('#1E293B')
+        self.ecommerce_canvas.axes.tick_params(colors='#94A3B8')
+        self.ecommerce_canvas.axes.spines['bottom'].set_color('#334155')
+        self.ecommerce_canvas.axes.spines['top'].set_color('#334155')
+        self.ecommerce_canvas.axes.spines['left'].set_color('#334155')
+        self.ecommerce_canvas.axes.spines['right'].set_color('#334155')
+        self.ecommerce_canvas.axes.xaxis.label.set_color('#94A3B8')
+        self.ecommerce_canvas.axes.yaxis.label.set_color('#94A3B8')
+        self.ecommerce_canvas.axes.title.set_color('#F8FAFC')
+        
+        # E-commerce platforms
+        platforms = ['Shopify', 'Amazon', 'eBay', 'Cdiscount']
+        
+        # Months for x-axis (last 12 months)
+        now = datetime.now()
+        months = []
+        for i in range(11, -1, -1):
+            month_date = now - timedelta(days=i*30)
+            months.append(month_date.strftime('%b %y'))
+        
+        # Generate sample data for each platform (in a real app, this would come from the database)
+        # This would be replaced with actual data from the database in a real application
+        shopify_data = [random.uniform(2000, 8000) for _ in range(12)]
+        amazon_data = [random.uniform(3000, 10000) for _ in range(12)]
+        ebay_data = [random.uniform(1500, 6000) for _ in range(12)]
+        cdiscount_data = [random.uniform(1000, 5000) for _ in range(12)]
+        
+        # Set up the plot
+        x = np.arange(len(months))
+        width = 0.2  # Width of the bars
+        
+        # Plot the bars for each platform
+        self.ecommerce_canvas.axes.bar(x - width*1.5, shopify_data, width, label='Shopify', color='#3B82F6')
+        self.ecommerce_canvas.axes.bar(x - width/2, amazon_data, width, label='Amazon', color='#F59E0B')
+        self.ecommerce_canvas.axes.bar(x + width/2, ebay_data, width, label='eBay', color='#10B981')
+        self.ecommerce_canvas.axes.bar(x + width*1.5, cdiscount_data, width, label='Cdiscount', color='#EF4444')
+        
+        # Set labels and title
+        self.ecommerce_canvas.axes.set_xlabel('Mois')
+        self.ecommerce_canvas.axes.set_ylabel('Ventes (€)')
+        self.ecommerce_canvas.axes.set_title('Ventes mensuelles par plateforme e-commerce')
+        self.ecommerce_canvas.axes.set_xticks(x)
+        self.ecommerce_canvas.axes.set_xticklabels(months, rotation=45, ha='right')
+        
+        # Add legend
+        self.ecommerce_canvas.axes.legend(facecolor='#1E293B', edgecolor='#334155', labelcolor='#F8FAFC')
+        
+        # Add grid
+        self.ecommerce_canvas.axes.grid(True, linestyle='--', alpha=0.3, color='#334155')
+        
+        # Adjust layout to make room for the rotated x-axis labels
+        self.ecommerce_canvas.fig.tight_layout()
+        
+        # Update the canvas
+        self.ecommerce_canvas.draw()
+    
     def refresh_data(self):
         """
         Refresh the dashboard data.
         """
-        # Update the graph
+        # Update the graphs
         selected_button = self.graph_button_group.checkedButton()
         if selected_button:
             self.update_graph(selected_button)
+        
+        # Update the e-commerce histogram
+        self.update_ecommerce_histogram()
         try:
             # Get statistics
             total_orders = self.db.query(Order).count()
