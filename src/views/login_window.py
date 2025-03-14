@@ -137,6 +137,8 @@ class LoginWindow(QMainWindow):
                 border: 1px solid #475569;
                 border-radius: 4px;
                 padding: 10px;
+                min-height: 35px;
+                height: 35px;
             }
             QLineEdit:focus {
                 border: 1px solid #3B82F6;
@@ -157,6 +159,8 @@ class LoginWindow(QMainWindow):
                 border: 1px solid #475569;
                 border-radius: 4px;
                 padding: 10px;
+                min-height: 35px;
+                height: 35px;
             }
             QLineEdit:focus {
                 border: 1px solid #3B82F6;
@@ -174,6 +178,8 @@ class LoginWindow(QMainWindow):
                 border: none;
                 border-radius: 4px;
                 padding: 10px;
+                min-height: 35px;
+                height: 35px;
                 font-weight: bold;
             }
             QPushButton:hover {
