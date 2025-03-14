@@ -231,11 +231,17 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(self.printers_btn)
         nav_layout.addWidget(self.customers_btn)
         nav_layout.addWidget(self.orders_btn)
-        nav_layout.addSpacing(10)
-        nav_layout.addWidget(self.settings_btn)
         nav_layout.addStretch()
         
         sidebar_layout.addWidget(nav_frame)
+        
+        # Settings button in its own frame
+        settings_frame = QFrame()
+        settings_layout = QVBoxLayout(settings_frame)
+        settings_layout.setContentsMargins(10, 0, 10, 0)
+        settings_layout.addWidget(self.settings_btn)
+        
+        sidebar_layout.addWidget(settings_frame)
         
         # User info
         user_frame = QFrame()

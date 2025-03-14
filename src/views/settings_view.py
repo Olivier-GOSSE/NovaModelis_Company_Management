@@ -95,6 +95,11 @@ class SettingsView(QWidget):
         self.setup_app_settings_tab()
         self.tab_widget.addTab(self.app_settings_tab, "Application Settings")
         
+        # Sales channels tab
+        self.sales_channels_tab = QWidget()
+        self.setup_sales_channels_tab()
+        self.tab_widget.addTab(self.sales_channels_tab, "Sales Channels")
+        
         main_layout.addWidget(self.tab_widget)
     
     def setup_profile_tab(self):
@@ -461,6 +466,331 @@ class SettingsView(QWidget):
         QMessageBox.information(self, "Success", "Settings updated successfully.")
         
         logging.info("Application settings updated")
+    
+    def setup_sales_channels_tab(self):
+        """
+        Set up the sales channels tab with e-commerce platform connections.
+        """
+        # Tab layout with scroll area for multiple platforms
+        tab_layout = QVBoxLayout(self.sales_channels_tab)
+        tab_layout.setContentsMargins(20, 20, 20, 20)
+        tab_layout.setSpacing(20)
+        
+        # Scroll area for platforms
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.setSpacing(20)
+        
+        # Header with title and add button
+        header_layout = QHBoxLayout()
+        
+        header_title = QLabel("E-Commerce Platform Connections")
+        header_title.setStyleSheet("color: #F8FAFC; font-size: 18px; font-weight: bold;")
+        
+        add_platform_btn = QPushButton("Add Platform")
+        add_platform_btn.setCursor(Qt.PointingHandCursor)
+        add_platform_btn.setIcon(QIcon("src/resources/icons/add.png"))
+        add_platform_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+            QPushButton:pressed {
+                background-color: #1D4ED8;
+            }
+        """)
+        add_platform_btn.clicked.connect(self.add_new_platform)
+        
+        header_layout.addWidget(header_title)
+        header_layout.addStretch()
+        header_layout.addWidget(add_platform_btn)
+        
+        scroll_layout.addLayout(header_layout)
+        
+        # Shopify connection
+        shopify_frame = self.create_platform_frame("Shopify", "shopify")
+        scroll_layout.addWidget(shopify_frame)
+        
+        # Amazon connection
+        amazon_frame = self.create_platform_frame("Amazon", "amazon")
+        scroll_layout.addWidget(amazon_frame)
+        
+        # eBay connection
+        ebay_frame = self.create_platform_frame("eBay", "ebay")
+        scroll_layout.addWidget(ebay_frame)
+        
+        # Cdiscount connection
+        cdiscount_frame = self.create_platform_frame("Cdiscount", "cdiscount")
+        scroll_layout.addWidget(cdiscount_frame)
+        
+        scroll_layout.addStretch()
+        
+        scroll_area.setWidget(scroll_content)
+        tab_layout.addWidget(scroll_area)
+    
+    def create_platform_frame(self, platform_name, platform_id):
+        """
+        Create a frame for a specific e-commerce platform.
+        
+        Args:
+            platform_name: The display name of the platform.
+            platform_id: The identifier for the platform.
+            
+        Returns:
+            QFrame: The configured frame for the platform.
+        """
+        platform_frame = QFrame()
+        platform_frame.setObjectName(f"{platform_id}Frame")
+        platform_frame.setStyleSheet(f"""
+            #{platform_id}Frame {{
+                background-color: #1E293B;
+                border-radius: 8px;
+            }}
+        """)
+        
+        platform_layout = QVBoxLayout(platform_frame)
+        platform_layout.setContentsMargins(20, 20, 20, 20)
+        platform_layout.setSpacing(15)
+        
+        # Header with platform name and toggle
+        header_layout = QHBoxLayout()
+        
+        platform_title = QLabel(platform_name)
+        platform_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
+        
+        enabled_check = QCheckBox("Enabled")
+        enabled_check.setStyleSheet("color: #94A3B8;")
+        
+        header_layout.addWidget(platform_title)
+        header_layout.addStretch()
+        header_layout.addWidget(enabled_check)
+        
+        platform_layout.addLayout(header_layout)
+        
+        # Form for connection details
+        form_layout = QFormLayout()
+        form_layout.setSpacing(12)
+        
+        # API Key / Client ID
+        api_key_label = QLabel("API Key / Client ID:")
+        api_key_label.setStyleSheet("color: #94A3B8;")
+        
+        api_key_input = QLineEdit()
+        api_key_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3B82F6;
+            }
+        """)
+        
+        form_layout.addRow(api_key_label, api_key_input)
+        
+        # API Secret / Client Secret
+        api_secret_label = QLabel("API Secret / Client Secret:")
+        api_secret_label.setStyleSheet("color: #94A3B8;")
+        
+        api_secret_input = QLineEdit()
+        api_secret_input.setEchoMode(QLineEdit.Password)
+        api_secret_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3B82F6;
+            }
+        """)
+        
+        form_layout.addRow(api_secret_label, api_secret_input)
+        
+        # Store URL / Endpoint
+        store_url_label = QLabel("Store URL / Endpoint:")
+        store_url_label.setStyleSheet("color: #94A3B8;")
+        
+        store_url_input = QLineEdit()
+        store_url_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3B82F6;
+            }
+        """)
+        
+        form_layout.addRow(store_url_label, store_url_input)
+        
+        # Additional fields specific to the platform
+        if platform_id == "shopify":
+            # Shopify specific - Access Token
+            access_token_label = QLabel("Access Token:")
+            access_token_label.setStyleSheet("color: #94A3B8;")
+            
+            access_token_input = QLineEdit()
+            access_token_input.setStyleSheet("""
+                QLineEdit {
+                    background-color: #334155;
+                    color: #F8FAFC;
+                    border: 1px solid #475569;
+                    border-radius: 4px;
+                    padding: 8px;
+                }
+                QLineEdit:focus {
+                    border: 1px solid #3B82F6;
+                }
+            """)
+            
+            form_layout.addRow(access_token_label, access_token_input)
+        
+        elif platform_id == "amazon":
+            # Amazon specific - Marketplace ID
+            marketplace_label = QLabel("Marketplace ID:")
+            marketplace_label.setStyleSheet("color: #94A3B8;")
+            
+            marketplace_input = QLineEdit()
+            marketplace_input.setStyleSheet("""
+                QLineEdit {
+                    background-color: #334155;
+                    color: #F8FAFC;
+                    border: 1px solid #475569;
+                    border-radius: 4px;
+                    padding: 8px;
+                }
+                QLineEdit:focus {
+                    border: 1px solid #3B82F6;
+                }
+            """)
+            
+            form_layout.addRow(marketplace_label, marketplace_input)
+            
+            # Amazon specific - Seller ID
+            seller_id_label = QLabel("Seller ID:")
+            seller_id_label.setStyleSheet("color: #94A3B8;")
+            
+            seller_id_input = QLineEdit()
+            seller_id_input.setStyleSheet("""
+                QLineEdit {
+                    background-color: #334155;
+                    color: #F8FAFC;
+                    border: 1px solid #475569;
+                    border-radius: 4px;
+                    padding: 8px;
+                }
+                QLineEdit:focus {
+                    border: 1px solid #3B82F6;
+                }
+            """)
+            
+            form_layout.addRow(seller_id_label, seller_id_input)
+        
+        platform_layout.addLayout(form_layout)
+        
+        # Buttons
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(10)
+        
+        test_btn = QPushButton("Test Connection")
+        test_btn.setCursor(Qt.PointingHandCursor)
+        test_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #475569;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 12px;
+            }
+            QPushButton:hover {
+                background-color: #64748B;
+            }
+            QPushButton:pressed {
+                background-color: #334155;
+            }
+        """)
+        
+        save_btn = QPushButton("Save")
+        save_btn.setCursor(Qt.PointingHandCursor)
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+            QPushButton:pressed {
+                background-color: #1D4ED8;
+            }
+        """)
+        
+        remove_btn = QPushButton("Remove")
+        remove_btn.setCursor(Qt.PointingHandCursor)
+        remove_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #EF4444;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 12px;
+            }
+            QPushButton:hover {
+                background-color: #DC2626;
+            }
+            QPushButton:pressed {
+                background-color: #B91C1C;
+            }
+        """)
+        
+        buttons_layout.addWidget(test_btn)
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(save_btn)
+        buttons_layout.addWidget(remove_btn)
+        
+        platform_layout.addLayout(buttons_layout)
+        
+        return platform_frame
+    
+    def add_new_platform(self):
+        """
+        Add a new e-commerce platform connection.
+        """
+        # In a real application, this would show a dialog to select a platform type
+        # and then add a new platform frame to the scroll area
+        # For this demo, we'll just show a message
+        QMessageBox.information(self, "Add Platform", "This would allow adding a new e-commerce platform connection.")
     
     def on_dark_mode_changed(self, state):
         """
