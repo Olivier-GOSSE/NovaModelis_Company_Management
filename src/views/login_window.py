@@ -125,11 +125,11 @@ class LoginWindow(QMainWindow):
         form_layout.setSpacing(15)
         
         # Username
-        username_label = QLabel("Username")
+        username_label = QLabel("Nom d'utilisateur")
         username_label.setStyleSheet("color: #94A3B8; font-weight: bold;")
         
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Enter your username")
+        self.username_input.setPlaceholderText("Entrez votre nom d'utilisateur")
         self.username_input.setStyleSheet("""
             QLineEdit {
                 background-color: #334155;
@@ -137,8 +137,8 @@ class LoginWindow(QMainWindow):
                 border: 1px solid #475569;
                 border-radius: 4px;
                 padding: 10px;
-                min-height: 35px;
-                height: 35px;
+                min-height: 45px;
+                height: 45px;
             }
             QLineEdit:focus {
                 border: 1px solid #3B82F6;
@@ -146,11 +146,11 @@ class LoginWindow(QMainWindow):
         """)
         
         # Password
-        password_label = QLabel("Password")
+        password_label = QLabel("Mot de passe")
         password_label.setStyleSheet("color: #94A3B8; font-weight: bold;")
         
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Enter your password")
+        self.password_input.setPlaceholderText("Entrez votre mot de passe")
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setStyleSheet("""
             QLineEdit {
@@ -159,8 +159,8 @@ class LoginWindow(QMainWindow):
                 border: 1px solid #475569;
                 border-radius: 4px;
                 padding: 10px;
-                min-height: 35px;
-                height: 35px;
+                min-height: 45px;
+                height: 45px;
             }
             QLineEdit:focus {
                 border: 1px solid #3B82F6;
@@ -169,7 +169,7 @@ class LoginWindow(QMainWindow):
         self.password_input.returnPressed.connect(self.login)
         
         # Login button
-        self.login_btn = QPushButton("Login")
+        self.login_btn = QPushButton("Connexion")
         self.login_btn.setCursor(Qt.PointingHandCursor)
         self.login_btn.setStyleSheet("""
             QPushButton {
@@ -178,8 +178,8 @@ class LoginWindow(QMainWindow):
                 border: none;
                 border-radius: 4px;
                 padding: 10px;
-                min-height: 35px;
-                height: 35px;
+                min-height: 45px;
+                height: 45px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -249,7 +249,7 @@ class LoginWindow(QMainWindow):
         password = self.password_input.text()
         
         if not username or not password:
-            QMessageBox.warning(self, "Login Failed", "Please enter both username and password.")
+            QMessageBox.warning(self, "Échec de connexion", "Veuillez entrer votre nom d'utilisateur et votre mot de passe.")
             return
         
         try:
@@ -257,12 +257,12 @@ class LoginWindow(QMainWindow):
             user = db.query(User).filter(User.username == username).first()
             
             if not user:
-                QMessageBox.warning(self, "Login Failed", "Invalid username or password.")
+                QMessageBox.warning(self, "Échec de connexion", "Nom d'utilisateur ou mot de passe invalide.")
                 return
             
             # Check password
             if not bcrypt.checkpw(password.encode('utf-8'), user.hashed_password.encode('utf-8')):
-                QMessageBox.warning(self, "Login Failed", "Invalid username or password.")
+                QMessageBox.warning(self, "Échec de connexion", "Nom d'utilisateur ou mot de passe invalide.")
                 return
             
             # Update last login
@@ -279,6 +279,6 @@ class LoginWindow(QMainWindow):
             logging.info(f"User {username} logged in successfully")
         except Exception as e:
             logging.error(f"Login error: {str(e)}")
-            QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+            QMessageBox.critical(self, "Erreur", f"Une erreur est survenue: {str(e)}")
         finally:
             db.close()

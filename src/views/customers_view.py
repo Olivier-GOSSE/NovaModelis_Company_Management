@@ -32,7 +32,7 @@ class CustomerDetailsDialog(QDialog):
         self.customer = customer
         self.is_edit_mode = customer is not None
         
-        self.setWindowTitle(f"{'Edit' if self.is_edit_mode else 'Add'} Customer")
+        self.setWindowTitle(f"{'Modifier' if self.is_edit_mode else 'Ajouter'} Client")
         self.setMinimumSize(500, 600)
         
         self.setup_ui()
@@ -55,11 +55,11 @@ class CustomerDetailsDialog(QDialog):
         
         # First name
         self.first_name_input = QLineEdit()
-        form_layout.addRow("First Name:", self.first_name_input)
+        form_layout.addRow("Prénom:", self.first_name_input)
         
         # Last name
         self.last_name_input = QLineEdit()
-        form_layout.addRow("Last Name:", self.last_name_input)
+        form_layout.addRow("Nom:", self.last_name_input)
         
         # Email
         self.email_input = QLineEdit()
@@ -67,31 +67,31 @@ class CustomerDetailsDialog(QDialog):
         
         # Phone
         self.phone_input = QLineEdit()
-        form_layout.addRow("Phone:", self.phone_input)
+        form_layout.addRow("Téléphone:", self.phone_input)
         
         # Address line 1
         self.address_line1_input = QLineEdit()
-        form_layout.addRow("Address Line 1:", self.address_line1_input)
+        form_layout.addRow("Adresse ligne 1:", self.address_line1_input)
         
         # Address line 2
         self.address_line2_input = QLineEdit()
-        form_layout.addRow("Address Line 2:", self.address_line2_input)
+        form_layout.addRow("Adresse ligne 2:", self.address_line2_input)
         
         # City
         self.city_input = QLineEdit()
-        form_layout.addRow("City:", self.city_input)
+        form_layout.addRow("Ville:", self.city_input)
         
         # State/Province
         self.state_province_input = QLineEdit()
-        form_layout.addRow("State/Province:", self.state_province_input)
+        form_layout.addRow("État/Province:", self.state_province_input)
         
         # Postal code
         self.postal_code_input = QLineEdit()
-        form_layout.addRow("Postal Code:", self.postal_code_input)
+        form_layout.addRow("Code postal:", self.postal_code_input)
         
         # Country
         self.country_input = QLineEdit()
-        form_layout.addRow("Country:", self.country_input)
+        form_layout.addRow("Pays:", self.country_input)
         
         # Notes
         self.notes_input = QTextEdit()
@@ -104,10 +104,10 @@ class CustomerDetailsDialog(QDialog):
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(10)
         
-        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn = QPushButton("Annuler")
         self.cancel_btn.clicked.connect(self.reject)
         
-        self.save_btn = QPushButton("Save")
+        self.save_btn = QPushButton("Enregistrer")
         self.save_btn.setDefault(True)
         self.save_btn.clicked.connect(self.save_customer)
         
@@ -161,15 +161,15 @@ class CustomerDetailsDialog(QDialog):
         email = self.email_input.text().strip()
         
         if not first_name:
-            QMessageBox.warning(self, "Validation Error", "First name is required.")
+            QMessageBox.warning(self, "Erreur de validation", "Le prénom est requis.")
             return
         
         if not last_name:
-            QMessageBox.warning(self, "Validation Error", "Last name is required.")
+            QMessageBox.warning(self, "Erreur de validation", "Le nom est requis.")
             return
         
         if not email:
-            QMessageBox.warning(self, "Validation Error", "Email is required.")
+            QMessageBox.warning(self, "Erreur de validation", "L'email est requis.")
             return
         
         try:
@@ -178,14 +178,14 @@ class CustomerDetailsDialog(QDialog):
             # Check if email is already in use
             existing_customer = db.query(Customer).filter(Customer.email == email).first()
             if existing_customer and (not self.is_edit_mode or existing_customer.id != self.customer.id):
-                QMessageBox.warning(self, "Validation Error", "Email is already in use.")
+                QMessageBox.warning(self, "Erreur de validation", "Cet email est déjà utilisé.")
                 return
             
             if self.is_edit_mode:
                 # Update existing customer
                 customer = db.query(Customer).filter(Customer.id == self.customer.id).first()
                 if not customer:
-                    QMessageBox.warning(self, "Error", "Customer not found.")
+                    QMessageBox.warning(self, "Erreur", "Client non trouvé.")
                     return
             else:
                 # Create new customer
@@ -214,7 +214,7 @@ class CustomerDetailsDialog(QDialog):
             self.accept()
         except Exception as e:
             logging.error(f"Error saving customer: {str(e)}")
-            QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue: {str(e)}")
         finally:
             db.close()
 
@@ -243,7 +243,7 @@ class CustomersView(QWidget):
         # Header
         header_layout = QHBoxLayout()
         
-        header_title = QLabel("Customers")
+        header_title = QLabel("Clients")
         header_title.setStyleSheet("color: #F8FAFC; font-size: 20px; font-weight: bold;")
         
         # Search box
@@ -251,7 +251,7 @@ class CustomersView(QWidget):
         search_layout.setSpacing(0)
         
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search customers...")
+        self.search_input.setPlaceholderText("Rechercher des clients...")
         self.search_input.setStyleSheet("""
             QLineEdit {
                 background-color: #1E293B;
@@ -266,7 +266,7 @@ class CustomersView(QWidget):
         search_layout.addWidget(self.search_input)
         
         # Add customer button
-        self.add_btn = QPushButton("Add Customer")
+        self.add_btn = QPushButton("Ajouter un client")
         self.add_btn.setIcon(QIcon("src/resources/icons/add.png"))
         self.add_btn.setCursor(Qt.PointingHandCursor)
         self.add_btn.setStyleSheet("""
@@ -295,7 +295,7 @@ class CustomersView(QWidget):
         self.customers_table = QTableWidget()
         self.customers_table.setColumnCount(7)
         self.customers_table.setHorizontalHeaderLabels([
-            "Name", "Email", "Phone", "Location", "Orders", "Total Spent", "Actions"
+            "Nom", "Email", "Téléphone", "Localisation", "Commandes", "Total dépensé", "Actions"
         ])
         self.customers_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.customers_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
@@ -343,7 +343,7 @@ class CustomersView(QWidget):
         messages_layout.setSpacing(10)
         
         messages_header = QHBoxLayout()
-        messages_title = QLabel("Recent Messages")
+        messages_title = QLabel("Messages récents")
         messages_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
         messages_header.addWidget(messages_title)
@@ -355,7 +355,7 @@ class CustomersView(QWidget):
         self.messages_table = QTableWidget()
         self.messages_table.setColumnCount(5)
         self.messages_table.setHorizontalHeaderLabels([
-            "Customer", "Subject", "Date", "Status", "Actions"
+            "Client", "Sujet", "Date", "Statut", "Actions"
         ])
         self.messages_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.messages_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
@@ -433,7 +433,7 @@ class CustomersView(QWidget):
                 
                 # Total spent
                 total_spent = sum(order.total_amount for order in customer.orders) if customer.orders else 0
-                total_spent_item = QTableWidgetItem(f"${total_spent:.2f}")
+                total_spent_item = QTableWidgetItem(f"{total_spent:.2f} €")
                 self.customers_table.setItem(i, 5, total_spent_item)
                 
                 # Actions
@@ -457,7 +457,7 @@ class CustomersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                view_btn.setToolTip("View Customer")
+                view_btn.setToolTip("Voir le client")
                 
                 # Edit button
                 edit_btn = QPushButton()
@@ -474,7 +474,7 @@ class CustomersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                edit_btn.setToolTip("Edit Customer")
+                edit_btn.setToolTip("Modifier le client")
                 edit_btn.clicked.connect(lambda checked, c=customer: self.edit_customer(c))
                 
                 # Delete button
@@ -492,7 +492,7 @@ class CustomersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                delete_btn.setToolTip("Delete Customer")
+                delete_btn.setToolTip("Supprimer le client")
                 delete_btn.clicked.connect(lambda checked, c=customer: self.delete_customer(c))
                 
                 # Email button
@@ -510,7 +510,7 @@ class CustomersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                email_btn.setToolTip("Email Customer")
+                email_btn.setToolTip("Envoyer un email au client")
                 
                 actions_layout.addWidget(view_btn)
                 actions_layout.addWidget(edit_btn)
@@ -528,7 +528,7 @@ class CustomersView(QWidget):
             for i, message in enumerate(recent_messages):
                 # Customer
                 customer = self.db.query(Customer).filter(Customer.id == message.customer_id).first()
-                customer_name = f"{customer.first_name} {customer.last_name}" if customer else "Unknown"
+                customer_name = f"{customer.first_name} {customer.last_name}" if customer else "Inconnu"
                 customer_item = QTableWidgetItem(customer_name)
                 self.messages_table.setItem(i, 0, customer_item)
                 
@@ -543,7 +543,7 @@ class CustomersView(QWidget):
                 # Status
                 status_text = message.status.value.capitalize()
                 if message.is_incoming and message.status == EmailStatus.UNREAD:
-                    status_text = "New"
+                    status_text = "Nouveau"
                 
                 status_item = QTableWidgetItem(status_text)
                 self.messages_table.setItem(i, 3, status_item)
@@ -569,7 +569,7 @@ class CustomersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                view_btn.setToolTip("View Message")
+                view_btn.setToolTip("Voir le message")
                 
                 # Reply button
                 reply_btn = QPushButton()
@@ -586,7 +586,7 @@ class CustomersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                reply_btn.setToolTip("Reply")
+                reply_btn.setToolTip("Répondre")
                 
                 actions_layout.addWidget(view_btn)
                 actions_layout.addWidget(reply_btn)
@@ -643,15 +643,15 @@ class CustomersView(QWidget):
         
         if orders_count > 0:
             QMessageBox.warning(
-                self, "Cannot Delete", 
-                f"Cannot delete customer '{customer.first_name} {customer.last_name}' because they have orders."
+                self, "Suppression impossible", 
+                f"Impossible de supprimer le client '{customer.first_name} {customer.last_name}' car il a des commandes."
             )
             return
         
         # Confirm deletion
         reply = QMessageBox.question(
-            self, "Confirm Deletion", 
-            f"Are you sure you want to delete customer '{customer.first_name} {customer.last_name}'?",
+            self, "Confirmer la suppression", 
+            f"Êtes-vous sûr de vouloir supprimer le client '{customer.first_name} {customer.last_name}' ?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         
@@ -670,4 +670,4 @@ class CustomersView(QWidget):
                 self.refresh_data()
             except Exception as e:
                 logging.error(f"Error deleting customer: {str(e)}")
-                QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
+                QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")

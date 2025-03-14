@@ -110,10 +110,10 @@ class DashboardView(QWidget):
         # Header
         header_layout = QHBoxLayout()
         
-        header_title = QLabel("Dashboard")
+        header_title = QLabel("Tableau de bord")
         header_title.setStyleSheet("color: #F8FAFC; font-size: 20px; font-weight: bold;")
         
-        refresh_btn = QPushButton("Refresh")
+        refresh_btn = QPushButton("Actualiser")
         refresh_btn.setIcon(QIcon("src/resources/icons/refresh.png"))
         refresh_btn.setCursor(Qt.PointingHandCursor)
         refresh_btn.setStyleSheet("""
@@ -153,7 +153,7 @@ class DashboardView(QWidget):
         
         # Graph header
         graph_header = QHBoxLayout()
-        graph_title = QLabel("Financial Overview")
+        graph_title = QLabel("Aperçu financier")
         graph_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
         # Graph type buttons
@@ -162,7 +162,7 @@ class DashboardView(QWidget):
         
         self.graph_button_group = QButtonGroup(self)
         
-        credit_btn = QPushButton("Credit")
+        credit_btn = QPushButton("Crédit")
         credit_btn.setCheckable(True)
         credit_btn.setChecked(True)  # Default selected
         credit_btn.setCursor(Qt.PointingHandCursor)
@@ -182,7 +182,7 @@ class DashboardView(QWidget):
             }
         """)
         
-        debit_btn = QPushButton("Debit")
+        debit_btn = QPushButton("Débit")
         debit_btn.setCheckable(True)
         debit_btn.setCursor(Qt.PointingHandCursor)
         debit_btn.setStyleSheet("""
@@ -201,7 +201,7 @@ class DashboardView(QWidget):
             }
         """)
         
-        purchases_btn = QPushButton("Purchases")
+        purchases_btn = QPushButton("Achats")
         purchases_btn.setCheckable(True)
         purchases_btn.setCursor(Qt.PointingHandCursor)
         purchases_btn.setStyleSheet("""
@@ -248,10 +248,10 @@ class DashboardView(QWidget):
         stats_layout.setSpacing(15)
         
         # Create stat cards (will be populated in refresh_data)
-        self.orders_card = StatCard("Total Orders", "0", "src/resources/icons/order.png")
-        self.revenue_card = StatCard("Total Revenue", "$0", "src/resources/icons/revenue.png", "#10B981")
-        self.customers_card = StatCard("Total Customers", "0", "src/resources/icons/customer.png", "#F59E0B")
-        self.printers_card = StatCard("Active Printers", "0", "src/resources/icons/printer.png", "#EF4444")
+        self.orders_card = StatCard("Commandes totales", "0", "src/resources/icons/order.png")
+        self.revenue_card = StatCard("Revenu total", "0 €", "src/resources/icons/revenue.png", "#10B981")
+        self.customers_card = StatCard("Clients totaux", "0", "src/resources/icons/customer.png", "#F59E0B")
+        self.printers_card = StatCard("Imprimantes actives", "0", "src/resources/icons/printer.png", "#EF4444")
         
         stats_layout.addWidget(self.orders_card)
         stats_layout.addWidget(self.revenue_card)
@@ -279,10 +279,10 @@ class DashboardView(QWidget):
         orders_layout.setSpacing(10)
         
         orders_header = QHBoxLayout()
-        orders_title = QLabel("Recent Orders")
+        orders_title = QLabel("Commandes récentes")
         orders_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
-        view_all_orders = QPushButton("View All")
+        view_all_orders = QPushButton("Voir tout")
         view_all_orders.setCursor(Qt.PointingHandCursor)
         view_all_orders.setStyleSheet("""
             QPushButton {
@@ -304,7 +304,7 @@ class DashboardView(QWidget):
         # Orders table
         self.orders_table = QTableWidget()
         self.orders_table.setColumnCount(5)
-        self.orders_table.setHorizontalHeaderLabels(["Order #", "Customer", "Date", "Amount", "Status"])
+        self.orders_table.setHorizontalHeaderLabels(["N° commande", "Client", "Date", "Montant", "Statut"])
         self.orders_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.orders_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
         self.orders_table.verticalHeader().setVisible(False)
@@ -351,10 +351,10 @@ class DashboardView(QWidget):
         jobs_layout.setSpacing(10)
         
         jobs_header = QHBoxLayout()
-        jobs_title = QLabel("Active Print Jobs")
+        jobs_title = QLabel("Travaux d'impression actifs")
         jobs_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
-        view_all_jobs = QPushButton("View All")
+        view_all_jobs = QPushButton("Voir tout")
         view_all_jobs.setCursor(Qt.PointingHandCursor)
         view_all_jobs.setStyleSheet("""
             QPushButton {
@@ -376,7 +376,7 @@ class DashboardView(QWidget):
         # Jobs table
         self.jobs_table = QTableWidget()
         self.jobs_table.setColumnCount(5)
-        self.jobs_table.setHorizontalHeaderLabels(["Job Name", "Printer", "Started", "Progress", "Est. Completion"])
+        self.jobs_table.setHorizontalHeaderLabels(["Nom du travail", "Imprimante", "Démarré", "Progression", "Fin estimée"])
         self.jobs_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.jobs_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
         self.jobs_table.verticalHeader().setVisible(False)
@@ -423,10 +423,10 @@ class DashboardView(QWidget):
         messages_layout.setSpacing(10)
         
         messages_header = QHBoxLayout()
-        messages_title = QLabel("Unread Messages")
+        messages_title = QLabel("Messages non lus")
         messages_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
-        view_all_messages = QPushButton("View All")
+        view_all_messages = QPushButton("Voir tout")
         view_all_messages.setCursor(Qt.PointingHandCursor)
         view_all_messages.setStyleSheet("""
             QPushButton {
@@ -448,7 +448,7 @@ class DashboardView(QWidget):
         # Messages table
         self.messages_table = QTableWidget()
         self.messages_table.setColumnCount(4)
-        self.messages_table.setHorizontalHeaderLabels(["From", "Subject", "Date", "Actions"])
+        self.messages_table.setHorizontalHeaderLabels(["De", "Sujet", "Date", "Actions"])
         self.messages_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.messages_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
         self.messages_table.verticalHeader().setVisible(False)
@@ -515,7 +515,7 @@ class DashboardView(QWidget):
         previous_year = current_year - 1
         
         # Months for x-axis
-        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
         
         # Generate sample data for now (in a real app, this would come from the database)
         # This would be replaced with actual data from the database in a real application
@@ -525,18 +525,18 @@ class DashboardView(QWidget):
         if button_id == 1:  # Credit
             current_year_data = [random.uniform(5000, 15000) for _ in range(12)]
             previous_year_data = [random.uniform(4000, 12000) for _ in range(12)]
-            title = "Monthly Credit"
-            y_label = "Credit Amount ($)"
+            title = "Crédit mensuel"
+            y_label = "Crédit (€)"
         elif button_id == 2:  # Debit
             current_year_data = [random.uniform(3000, 10000) for _ in range(12)]
             previous_year_data = [random.uniform(2500, 9000) for _ in range(12)]
-            title = "Monthly Debit"
-            y_label = "Debit Amount ($)"
+            title = "Débit mensuel"
+            y_label = "Débit (€)"
         else:  # Purchases
             current_year_data = [random.uniform(2000, 8000) for _ in range(12)]
             previous_year_data = [random.uniform(1500, 7000) for _ in range(12)]
-            title = "Monthly Purchases"
-            y_label = "Purchase Amount ($)"
+            title = "Achats mensuels"
+            y_label = "Achats (€)"
         
         # Plot the data
         x = np.arange(len(months))
@@ -555,7 +555,7 @@ class DashboardView(QWidget):
                                    color='#3B82F6', linewidth=2, markersize=6, label=f'{current_year}')
         
         # Set labels and title
-        self.graph_canvas.axes.set_xlabel('Month')
+        self.graph_canvas.axes.set_xlabel('Mois')
         self.graph_canvas.axes.set_ylabel(y_label)
         self.graph_canvas.axes.set_title(title)
         self.graph_canvas.axes.set_xticks(x)
@@ -589,7 +589,7 @@ class DashboardView(QWidget):
             
             # Update stat cards
             self.orders_card.findChild(QLabel, "", Qt.FindChildrenRecursively).setText(str(total_orders))
-            self.revenue_card.findChild(QLabel, "", Qt.FindChildrenRecursively).setText(f"${total_revenue:.2f}")
+            self.revenue_card.findChild(QLabel, "", Qt.FindChildrenRecursively).setText(f"{total_revenue:.2f} €")
             self.customers_card.findChild(QLabel, "", Qt.FindChildrenRecursively).setText(str(total_customers))
             self.printers_card.findChild(QLabel, "", Qt.FindChildrenRecursively).setText(str(active_printers))
             
@@ -605,7 +605,7 @@ class DashboardView(QWidget):
                 
                 # Customer
                 customer = self.db.query(Customer).filter(Customer.id == order.customer_id).first()
-                customer_name = f"{customer.first_name} {customer.last_name}" if customer else "Unknown"
+                customer_name = f"{customer.first_name} {customer.last_name}" if customer else "Inconnu"
                 customer_item = QTableWidgetItem(customer_name)
                 self.orders_table.setItem(i, 1, customer_item)
                 
@@ -614,7 +614,7 @@ class DashboardView(QWidget):
                 self.orders_table.setItem(i, 2, date_item)
                 
                 # Amount
-                amount_item = QTableWidgetItem(f"${order.total_amount:.2f}")
+                amount_item = QTableWidgetItem(f"{order.total_amount:.2f} €")
                 self.orders_table.setItem(i, 3, amount_item)
                 
                 # Status
@@ -633,7 +633,7 @@ class DashboardView(QWidget):
                 
                 # Printer
                 printer = self.db.query(Printer).filter(Printer.id == job.printer_id).first()
-                printer_name = printer.name if printer else "Unknown"
+                printer_name = printer.name if printer else "Inconnu"
                 printer_item = QTableWidgetItem(printer_name)
                 self.jobs_table.setItem(i, 1, printer_item)
                 
@@ -647,7 +647,7 @@ class DashboardView(QWidget):
                 
                 # Estimated completion
                 est_completion = job.estimated_completion_time
-                est_completion_text = est_completion.strftime("%d %b %Y %H:%M") if est_completion else "Unknown"
+                est_completion_text = est_completion.strftime("%d %b %Y %H:%M") if est_completion else "Inconnue"
                 est_completion_item = QTableWidgetItem(est_completion_text)
                 self.jobs_table.setItem(i, 4, est_completion_item)
             
@@ -662,7 +662,7 @@ class DashboardView(QWidget):
             for i, message in enumerate(unread_messages):
                 # From
                 customer = self.db.query(Customer).filter(Customer.id == message.customer_id).first()
-                from_text = f"{customer.first_name} {customer.last_name}" if customer else "Unknown"
+                from_text = f"{customer.first_name} {customer.last_name}" if customer else "Inconnu"
                 from_item = QTableWidgetItem(from_text)
                 self.messages_table.setItem(i, 0, from_item)
                 
@@ -695,7 +695,7 @@ class DashboardView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                view_btn.setToolTip("View Message")
+                view_btn.setToolTip("Voir le message")
                 
                 # Reply button
                 reply_btn = QPushButton()
@@ -712,7 +712,7 @@ class DashboardView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                reply_btn.setToolTip("Reply")
+                reply_btn.setToolTip("Répondre")
                 
                 actions_layout.addWidget(view_btn)
                 actions_layout.addWidget(reply_btn)

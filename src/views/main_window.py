@@ -97,7 +97,7 @@ class MainWindow(QMainWindow):
         nav_layout.setSpacing(5)
         
         # Dashboard button
-        self.dashboard_btn = QPushButton("Dashboard")
+        self.dashboard_btn = QPushButton("Tableau de bord")
         self.dashboard_btn.setIcon(QIcon("src/resources/icons/dashboard.png"))
         self.dashboard_btn.setIconSize(QSize(18, 18))
         self.dashboard_btn.setCursor(Qt.PointingHandCursor)
@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
         self.dashboard_btn.clicked.connect(lambda: self.switch_view(0))
         
         # Printers button
-        self.printers_btn = QPushButton("Printers")
+        self.printers_btn = QPushButton("Imprimantes")
         self.printers_btn.setIcon(QIcon("src/resources/icons/printer.png"))
         self.printers_btn.setIconSize(QSize(18, 18))
         self.printers_btn.setCursor(Qt.PointingHandCursor)
@@ -150,7 +150,7 @@ class MainWindow(QMainWindow):
         self.printers_btn.clicked.connect(lambda: self.switch_view(1))
         
         # Customers button
-        self.customers_btn = QPushButton("Customers")
+        self.customers_btn = QPushButton("Clients")
         self.customers_btn.setIcon(QIcon("src/resources/icons/customer.png"))
         self.customers_btn.setIconSize(QSize(18, 18))
         self.customers_btn.setCursor(Qt.PointingHandCursor)
@@ -176,7 +176,7 @@ class MainWindow(QMainWindow):
         self.customers_btn.clicked.connect(lambda: self.switch_view(2))
         
         # Orders button
-        self.orders_btn = QPushButton("Orders")
+        self.orders_btn = QPushButton("Commandes")
         self.orders_btn.setIcon(QIcon("src/resources/icons/order.png"))
         self.orders_btn.setIconSize(QSize(18, 18))
         self.orders_btn.setCursor(Qt.PointingHandCursor)
@@ -202,7 +202,7 @@ class MainWindow(QMainWindow):
         self.orders_btn.clicked.connect(lambda: self.switch_view(3))
         
         # Settings button
-        self.settings_btn = QPushButton("Settings")
+        self.settings_btn = QPushButton("Paramètres")
         self.settings_btn.setIcon(QIcon("src/resources/icons/settings.png"))
         self.settings_btn.setIconSize(QSize(18, 18))
         self.settings_btn.setCursor(Qt.PointingHandCursor)
@@ -264,7 +264,7 @@ class MainWindow(QMainWindow):
                 background-color: #1E293B;
             }
         """)
-        logout_btn.setToolTip("Logout")
+        logout_btn.setToolTip("Déconnexion")
         logout_btn.clicked.connect(self.logout)
         
         user_layout.addWidget(user_icon)
@@ -360,15 +360,15 @@ class MainWindow(QMainWindow):
         """
         # In a real application, this would update the application's theme
         # For this demo, we'll just show a message
-        theme_name = "Dark" if is_dark_mode else "Light"
-        QMessageBox.information(self, "Theme Changed", f"Theme changed to {theme_name} mode.")
+        theme_name = "Sombre" if is_dark_mode else "Clair"
+        QMessageBox.information(self, "Thème modifié", f"Thème changé en mode {theme_name}.")
     
     def logout(self):
         """
         Handle logout button click.
         """
         reply = QMessageBox.question(
-            self, "Logout", "Are you sure you want to logout?",
+            self, "Déconnexion", "Êtes-vous sûr de vouloir vous déconnecter ?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         
