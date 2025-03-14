@@ -36,8 +36,11 @@ class MainWindow(QMainWindow):
         self.db = SessionLocal()
         
         self.setWindowTitle(config.APP_NAME)
-        self.setMinimumSize(1200, 800)
         self.setWindowIcon(QIcon("src/resources/icons/logo.png"))
+        
+        # Rendre la fenêtre non redimensionnable et en plein écran
+        self.setWindowFlags(self.windowFlags() | Qt.MSWindowsFixedSizeDialogHint)
+        self.showFullScreen()
         
         self.setup_ui()
         self.setup_refresh_timer()
@@ -380,6 +383,22 @@ class MainWindow(QMainWindow):
         
         if reply == QMessageBox.Yes:
             self.close()
+    
+    def keyPressEvent(self, event):
+        """
+        Handle key press events.
+        
+        Args:
+            event: The key press event.
+        """
+        # Quitter le mode plein écran avec la touche Échap
+        if event.key() == Qt.Key_Escape:
+            if self.isFullScreen():
+                self.showNormal()
+            else:
+                self.showFullScreen()
+        else:
+            super().keyPressEvent(event)
     
     def closeEvent(self, event):
         """
