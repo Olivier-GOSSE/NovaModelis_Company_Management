@@ -35,20 +35,24 @@ class LoginWindow(QMainWindow):
         super().__init__()
         
         self.setWindowTitle(config.APP_NAME)
-        self.setFixedSize(400, 500)  # Fixed size instead of minimum size
+        self.setFixedSize(400, 600)  # Further increased height to ensure all elements are visible
         self.setWindowIcon(QIcon("src/resources/icons/logo.png"))
         
         # Set window flags to remove the resize handles
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
         
-        # Set rounded corners using stylesheet
+        # Set rounded corners and transparency using stylesheet
         self.setStyleSheet("""
             QMainWindow {
                 background-color: #0F172A;
                 border-radius: 15px;
                 border: 1px solid #334155;
+                opacity: 0.9;  /* 10% transparency (90% opacity) */
             }
         """)
+        
+        # Set window transparency
+        self.setWindowOpacity(0.9)  # 10% transparency (90% opacity)
         
         self.setup_ui()
     
@@ -120,16 +124,14 @@ class LoginWindow(QMainWindow):
             }
         """)
         
-        form_layout = QVBoxLayout(form_frame)
-        form_layout.setContentsMargins(20, 20, 20, 20)
-        form_layout.setSpacing(15)
+        # Main form layout
+        main_form_layout = QVBoxLayout(form_frame)
+        main_form_layout.setContentsMargins(20, 20, 20, 20)
+        main_form_layout.setSpacing(20)
         
-        # Username
-        username_label = QLabel("Nom d'utilisateur")
-        username_label.setStyleSheet("color: #94A3B8; font-weight: bold;")
-        
+        # Username input - using only placeholder, no separate label
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Entrez votre nom d'utilisateur")
+        self.username_input.setPlaceholderText("Nom d'utilisateur")
         self.username_input.setStyleSheet("""
             QLineEdit {
                 background-color: #334155;
@@ -139,18 +141,20 @@ class LoginWindow(QMainWindow):
                 padding: 10px;
                 min-height: 45px;
                 height: 45px;
+                font-size: 14px;
             }
             QLineEdit:focus {
                 border: 1px solid #3B82F6;
             }
         """)
+        main_form_layout.addWidget(self.username_input)
         
-        # Password
-        password_label = QLabel("Mot de passe")
-        password_label.setStyleSheet("color: #94A3B8; font-weight: bold;")
+        # Add spacing between username and password
+        main_form_layout.addSpacing(20)
         
+        # Password input - using only placeholder, no separate label
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Entrez votre mot de passe")
+        self.password_input.setPlaceholderText("Mot de passe")
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setStyleSheet("""
             QLineEdit {
@@ -161,16 +165,22 @@ class LoginWindow(QMainWindow):
                 padding: 10px;
                 min-height: 45px;
                 height: 45px;
+                font-size: 14px;
             }
             QLineEdit:focus {
                 border: 1px solid #3B82F6;
             }
         """)
         self.password_input.returnPressed.connect(self.login)
+        main_form_layout.addWidget(self.password_input)
+        
+        # Add spacing before login button
+        main_form_layout.addSpacing(30)
         
         # Login button
         self.login_btn = QPushButton("Connexion")
         self.login_btn.setCursor(Qt.PointingHandCursor)
+        self.login_btn.setFixedHeight(50)  # Ensure fixed height
         self.login_btn.setStyleSheet("""
             QPushButton {
                 background-color: #3B82F6;
@@ -178,9 +188,8 @@ class LoginWindow(QMainWindow):
                 border: none;
                 border-radius: 4px;
                 padding: 10px;
-                min-height: 45px;
-                height: 45px;
                 font-weight: bold;
+                font-size: 16px;
             }
             QPushButton:hover {
                 background-color: #2563EB;
@@ -190,14 +199,7 @@ class LoginWindow(QMainWindow):
             }
         """)
         self.login_btn.clicked.connect(self.login)
-        
-        # Add widgets to form layout
-        form_layout.addWidget(username_label)
-        form_layout.addWidget(self.username_input)
-        form_layout.addWidget(password_label)
-        form_layout.addWidget(self.password_input)
-        form_layout.addSpacing(10)
-        form_layout.addWidget(self.login_btn)
+        main_form_layout.addWidget(self.login_btn)
         
         main_layout.addWidget(form_frame)
         
