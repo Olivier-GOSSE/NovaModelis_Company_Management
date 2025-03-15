@@ -23,5 +23,12 @@ ADMIN_EMAIL = "admin@novamodelisapp.com"
 # Auto-refresh interval in seconds
 AUTO_REFRESH_INTERVAL = 60
 
+# Language settings
+DEFAULT_LANGUAGE = "fr"  # fr or en
+AVAILABLE_LANGUAGES = ["fr", "en"]
+
+# Currency settings
+DEFAULT_CURRENCY = "EUR"  # EUR, USD, GBP, etc.
+
 # Demo data
 CREATE_DEMO_DATA = True

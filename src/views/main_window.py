@@ -262,15 +262,18 @@ class MainWindow(QMainWindow):
         
         logout_btn = QPushButton()
         logout_btn.setIcon(QIcon("src/resources/icons/logout.png"))
-        logout_btn.setIconSize(QSize(16, 16))
+        logout_btn.setIconSize(QSize(24, 24))
+        logout_btn.setFixedSize(40, 40)
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setStyleSheet("""
             QPushButton {
-                background-color: transparent;
+                background-color: #334155;
                 border: none;
+                border-radius: 6px;
+                padding: 8px;
             }
             QPushButton:hover {
-                background-color: #1E293B;
+                background-color: #475569;
             }
         """)
         logout_btn.setToolTip("Déconnexion")

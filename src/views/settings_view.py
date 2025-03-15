@@ -6,6 +6,18 @@ import sys
 import logging
 import datetime
 import bcrypt
+from utils.translations import set_language, get_current_language, _, AVAILABLE_LANGUAGES
+"""
+Settings view for the application.
+"""
+"""
+Settings view for the application.
+"""
+import os
+import sys
+import logging
+import datetime
+import bcrypt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QFrame, QGridLayout, QScrollArea, QTabWidget, QLineEdit,
