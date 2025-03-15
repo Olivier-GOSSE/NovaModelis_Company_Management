@@ -36,7 +36,7 @@ class LoginWindow(QMainWindow):
         
         self.setWindowTitle(config.APP_NAME)
         self.setFixedSize(400, 600)  # Further increased height to ensure all elements are visible
-        self.setWindowIcon(QIcon("src/resources/icons/logo.png"))
+        self.setWindowIcon(QIcon("src/resources/icons/Logo.png"))
         
         # Set window flags to remove the resize handles
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
@@ -102,7 +102,7 @@ class LoginWindow(QMainWindow):
         logo_layout.setAlignment(Qt.AlignCenter)
         
         logo_label = QLabel()
-        logo_pixmap = QPixmap("src/resources/icons/logo.png")
+        logo_pixmap = QPixmap("src/resources/icons/Logo.png")
         logo_label.setPixmap(logo_pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         
         logo_layout.addWidget(logo_label)

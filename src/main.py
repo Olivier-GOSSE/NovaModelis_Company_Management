@@ -30,8 +30,8 @@ def create_resources_dirs():
     icons_dir = os.path.join(resources_dir, "icons")
     os.makedirs(icons_dir, exist_ok=True)
     
-    # Check if logo.png exists, if not create a placeholder
-    logo_path = os.path.join(icons_dir, "logo.png")
+    # Check if Logo.png exists, if not create a placeholder
+    logo_path = os.path.join(icons_dir, "Logo.png")
     if not os.path.exists(logo_path):
         try:
             # Try to create a simple placeholder logo
@@ -114,7 +114,7 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName(config.APP_NAME)
         app.setApplicationVersion(config.APP_VERSION)
-        app.setWindowIcon(QIcon("src/resources/icons/logo.png"))
+        app.setWindowIcon(QIcon("src/resources/icons/Logo.png"))
         
         # Set application style
         app.setStyle("Fusion")
