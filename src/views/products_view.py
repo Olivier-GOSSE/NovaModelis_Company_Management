@@ -13,13 +13,14 @@ from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QDialog, QLineEdit, QFormLayout,
     QComboBox, QMessageBox, QSpinBox, QDoubleSpinBox, QTextEdit,
     QFileDialog, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem,
-    QGraphicsSceneWheelEvent, QGraphicsSceneMouseEvent, QMenu, QAction,
+    QGraphicsSceneWheelEvent, QGraphicsSceneMouseEvent, QMenu,
     QTabWidget, QToolBar, QToolButton, QSlider, QCheckBox, QGroupBox
 )
 from PySide6.QtCore import Qt, Signal, Slot, QSize, QRectF, QPointF, QTimer, QBuffer, QIODevice, QByteArray
 from PySide6.QtGui import (
     QIcon, QFont, QColor, QPainter, QPixmap, QImage, QPen, QBrush, 
-    QTransform, QCursor, QPainterPath, QLinearGradient, QRadialGradient
+    QTransform, QCursor, QPainterPath, QLinearGradient, QRadialGradient,
+    QAction
 )
 from PySide6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
 
@@ -134,6 +135,9 @@ class ProductThumbnail(QWidget):
         super().paintEvent(event)
         
         if self.is_hovered:
+            # Create a copy of the original pixmap to work with
+            pixmap_copy = QPixmap(self.image_label.pixmap())
+            
             # Create a larger version of the image for hover effect
             enlarged_pixmap = self.original_pixmap.scaled(
                 int(self.image_label.width() * self.zoom_factor),
@@ -146,13 +150,13 @@ class ProductThumbnail(QWidget):
             x_offset = (enlarged_pixmap.width() - self.image_label.width()) // 2
             y_offset = (enlarged_pixmap.height() - self.image_label.height()) // 2
             
-            # Create a painter for the image label
-            painter = QPainter(self.image_label.pixmap())
+            # Create a painter for the pixmap copy
+            painter = QPainter(pixmap_copy)
             painter.drawPixmap(-x_offset, -y_offset, enlarged_pixmap)
-            painter.end()
+            painter.end()  # Explicitly end the painter before setting the pixmap
             
-            # Update the image label
-            self.image_label.update()
+            # Set the modified pixmap to the label
+            self.image_label.setPixmap(pixmap_copy)
 
 
 class WorldMapWidget(QWidget):
