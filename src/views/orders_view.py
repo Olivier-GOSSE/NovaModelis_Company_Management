@@ -573,6 +573,11 @@ class OrdersView(QWidget):
             
             # Populate orders table
             self.orders_table.setRowCount(len(orders))
+            
+            # Set row height for better icon visibility
+            for i in range(len(orders)):
+                self.orders_table.setRowHeight(i, 40)
+                
             for i, order in enumerate(orders):
                 # Order number
                 order_num_item = QTableWidgetItem(order.order_number)

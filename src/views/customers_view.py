@@ -400,6 +400,11 @@ class CustomersView(QWidget):
             
             # Populate customers table
             self.customers_table.setRowCount(len(customers))
+            
+            # Set row height for better icon visibility
+            for i in range(len(customers)):
+                self.customers_table.setRowHeight(i, 40)
+                
             for i, customer in enumerate(customers):
                 # Name
                 name_item = QTableWidgetItem(f"{customer.first_name} {customer.last_name}")
@@ -525,6 +530,11 @@ class CustomersView(QWidget):
             
             # Populate messages table
             self.messages_table.setRowCount(len(recent_messages))
+            
+            # Set row height for better icon visibility
+            for i in range(len(recent_messages)):
+                self.messages_table.setRowHeight(i, 40)
+                
             for i, message in enumerate(recent_messages):
                 # Customer
                 customer = self.db.query(Customer).filter(Customer.id == message.customer_id).first()
