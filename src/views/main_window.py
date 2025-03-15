@@ -22,6 +22,7 @@ from views.printers_view import PrintersView
 from views.customers_view import CustomersView
 from views.orders_view import OrdersView
 from views.settings_view import SettingsView
+from views.products_view import ProductsView
 import config
 
 
@@ -204,6 +205,32 @@ class MainWindow(QMainWindow):
         """)
         self.orders_btn.clicked.connect(lambda: self.switch_view(3))
         
+        # Products button
+        self.products_btn = QPushButton("Produits")
+        self.products_btn.setIcon(QIcon("src/resources/icons/order.png"))
+        self.products_btn.setIconSize(QSize(18, 18))
+        self.products_btn.setCursor(Qt.PointingHandCursor)
+        self.products_btn.setCheckable(True)
+        self.products_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background-color: #1E293B;
+                color: #F8FAFC;
+            }
+            QPushButton:checked {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+            }
+        """)
+        self.products_btn.clicked.connect(lambda: self.switch_view(4))
+        
         # Settings button
         self.settings_btn = QPushButton("Paramètres")
         self.settings_btn.setIcon(QIcon("src/resources/icons/settings.png"))
@@ -228,12 +255,13 @@ class MainWindow(QMainWindow):
                 color: #F8FAFC;
             }
         """)
-        self.settings_btn.clicked.connect(lambda: self.switch_view(4))
+        self.settings_btn.clicked.connect(lambda: self.switch_view(5))
         
         nav_layout.addWidget(self.dashboard_btn)
         nav_layout.addWidget(self.printers_btn)
         nav_layout.addWidget(self.customers_btn)
         nav_layout.addWidget(self.orders_btn)
+        nav_layout.addWidget(self.products_btn)
         nav_layout.addStretch()
         
         sidebar_layout.addWidget(nav_frame)
@@ -307,6 +335,7 @@ class MainWindow(QMainWindow):
         self.printers_view = PrintersView(self.db)
         self.customers_view = CustomersView(self.db)
         self.orders_view = OrdersView(self.db)
+        self.products_view = ProductsView(self.db)
         self.settings_view = SettingsView(self.db, self.user)
         
         # Connect settings view theme changed signal
@@ -317,6 +346,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.printers_view)
         self.stacked_widget.addWidget(self.customers_view)
         self.stacked_widget.addWidget(self.orders_view)
+        self.stacked_widget.addWidget(self.products_view)
         self.stacked_widget.addWidget(self.settings_view)
         
         content_layout.addWidget(self.stacked_widget)
@@ -337,7 +367,8 @@ class MainWindow(QMainWindow):
         self.printers_btn.setChecked(index == 1)
         self.customers_btn.setChecked(index == 2)
         self.orders_btn.setChecked(index == 3)
-        self.settings_btn.setChecked(index == 4)
+        self.products_btn.setChecked(index == 4)
+        self.settings_btn.setChecked(index == 5)
         
         # Switch view
         self.stacked_widget.setCurrentIndex(index)

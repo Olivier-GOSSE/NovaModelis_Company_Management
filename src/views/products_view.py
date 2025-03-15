@@ -868,3 +868,818 @@ class ProductDetailsDialog(QDialog):
         self.countries_table.setAlternatingRowColors(True)
         self.countries_table.setStyleSheet("""
             QTableWidget {
+                background-color: #1E293B;
+                border-radius: 8px;
+                border: none;
+                gridline-color: #334155;
+            }
+            QHeaderView::section {
+                background-color: #0F172A;
+                color: #94A3B8;
+                border: none;
+                padding: 5px;
+            }
+            QTableWidget::item {
+                color: #F8FAFC;
+                border: none;
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #334155;
+            }
+        """)
+        
+        tab_layout.addWidget(self.countries_table)
+    
+    def load_product_data(self):
+        """
+        Load product data into the dialog.
+        """
+        # Set product image
+        if self.product.image_path and os.path.exists(self.product.image_path):
+            pixmap = QPixmap(self.product.image_path)
+        else:
+            # Use placeholder image
+            pixmap = QPixmap("src/resources/icons/product_placeholder.png")
+        
+        self.image_label.setPixmap(pixmap)
+        
+        # Set product info
+        self.name_label.setText(self.product.name)
+        self.description_label.setText(self.product.description or "No description available.")
+        
+        # Set product details
+        self.production_time_label.setText(f"{self.product.production_time} hours")
+        self.production_cost_label.setText(f"${self.product.production_cost:.2f}")
+        self.initial_quantity_label.setText(str(self.product.initial_quantity))
+        self.total_sales_label.setText(str(self.product.total_sales))
+        
+        # Load sales data
+        self.load_sales_data()
+    
+    def load_sales_data(self):
+        """
+        Load sales data into the dialog.
+        """
+        # Get sales by country
+        sales_by_country = self.product.sales_by_country
+        
+        # Convert to format for world map
+        countries_data = {}
+        
+        try:
+            db = SessionLocal()
+            
+            # Get country codes
+            for country_name, sales_count in sales_by_country.items():
+                country = db.query(Country).filter(Country.name == country_name).first()
+                if country:
+                    countries_data[country.code] = sales_count
+            
+            # Update world map
+            self.world_map.update_map(countries_data)
+            
+            # Update countries table
+            self.update_countries_table(sales_by_country)
+        except Exception as e:
+            logging.error(f"Error loading sales data: {str(e)}")
+        finally:
+            db.close()
+    
+    def update_countries_table(self, sales_by_country):
+        """
+        Update the countries table with sales data.
+        """
+        # Clear table
+        self.countries_table.setRowCount(0)
+        
+        try:
+            db = SessionLocal()
+            
+            # Get countries with sales
+            countries_with_sales = []
+            
+            for country_name, sales_count in sales_by_country.items():
+                country = db.query(Country).filter(Country.name == country_name).first()
+                if country:
+                    countries_with_sales.append({
+                        'name': country.name,
+                        'code': country.code,
+                        'sales': sales_count
+                    })
+            
+            # Sort countries
+            self.sort_countries_data(countries_with_sales)
+            
+            # Populate table
+            self.countries_table.setRowCount(len(countries_with_sales))
+            
+            for i, country_data in enumerate(countries_with_sales):
+                # Country name
+                name_item = QTableWidgetItem(country_data['name'])
+                self.countries_table.setItem(i, 0, name_item)
+                
+                # Country code
+                code_item = QTableWidgetItem(country_data['code'])
+                self.countries_table.setItem(i, 1, code_item)
+                
+                # Sales count
+                sales_item = QTableWidgetItem(str(country_data['sales']))
+                sales_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.countries_table.setItem(i, 2, sales_item)
+        except Exception as e:
+            logging.error(f"Error updating countries table: {str(e)}")
+        finally:
+            db.close()
+    
+    def sort_countries_data(self, countries_data):
+        """
+        Sort the countries data based on the selected sort option.
+        """
+        sort_option = self.sort_combo.currentData()
+        
+        if sort_option == "sales_desc":
+            countries_data.sort(key=lambda x: x['sales'], reverse=True)
+        elif sort_option == "sales_asc":
+            countries_data.sort(key=lambda x: x['sales'])
+        elif sort_option == "country_asc":
+            countries_data.sort(key=lambda x: x['name'])
+        elif sort_option == "country_desc":
+            countries_data.sort(key=lambda x: x['name'], reverse=True)
+    
+    def sort_countries(self):
+        """
+        Sort the countries table based on the selected sort option.
+        """
+        # Reload sales data to apply new sort
+        self.load_sales_data()
+    
+    def filter_countries(self):
+        """
+        Filter the countries table based on the search text.
+        """
+        search_text = self.search_input.text().lower()
+        
+        for i in range(self.countries_table.rowCount()):
+            row_hidden = True
+            
+            # Check if search text is in country name or code
+            for j in range(2):
+                item = self.countries_table.item(i, j)
+                if item and search_text in item.text().lower():
+                    row_hidden = False
+                    break
+            
+            self.countries_table.setRowHidden(i, row_hidden)
+    
+    def export_data(self):
+        """
+        Export the sales data to a CSV file.
+        """
+        # Get file path
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export Data", "", "CSV Files (*.csv)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            with open(file_path, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                
+                # Write header
+                writer.writerow(["Country", "Country Code", "Sales"])
+                
+                # Write data
+                for i in range(self.countries_table.rowCount()):
+                    if not self.countries_table.isRowHidden(i):
+                        country = self.countries_table.item(i, 0).text()
+                        code = self.countries_table.item(i, 1).text()
+                        sales = self.countries_table.item(i, 2).text()
+                        
+                        writer.writerow([country, code, sales])
+            
+            QMessageBox.information(self, "Export Successful", f"Data exported to {file_path}")
+        except Exception as e:
+            logging.error(f"Error exporting data: {str(e)}")
+            QMessageBox.warning(self, "Export Error", f"An error occurred: {str(e)}")
+
+
+class ProductDialog(QDialog):
+    """
+    Dialog for adding or editing a product.
+    """
+    def __init__(self, parent=None, product=None):
+        super().__init__(parent)
+        
+        self.product = product
+        self.is_edit_mode = product is not None
+        self.image_path = product.image_path if product else None
+        
+        self.setWindowTitle(f"{'Edit' if self.is_edit_mode else 'Add'} Product")
+        self.setMinimumSize(600, 500)
+        
+        self.setup_ui()
+        
+        if self.is_edit_mode:
+            self.load_product_data()
+    
+    def setup_ui(self):
+        """
+        Set up the user interface.
+        """
+        # Main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
+        
+        # Form layout
+        form_layout = QFormLayout()
+        form_layout.setSpacing(15)
+        
+        # Product image
+        image_layout = QHBoxLayout()
+        
+        self.image_frame = QFrame()
+        self.image_frame.setObjectName("imageFrame")
+        self.image_frame.setStyleSheet("""
+            #imageFrame {
+                background-color: #1E293B;
+                border-radius: 8px;
+                border: 1px solid #334155;
+            }
+        """)
+        self.image_frame.setFixedSize(150, 150)
+        
+        image_inner_layout = QVBoxLayout(self.image_frame)
+        image_inner_layout.setContentsMargins(5, 5, 5, 5)
+        image_inner_layout.setSpacing(0)
+        
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setScaledContents(True)
+        self.image_label.setFixedSize(140, 140)
+        
+        # Set placeholder image
+        pixmap = QPixmap("src/resources/icons/product_placeholder.png")
+        self.image_label.setPixmap(pixmap)
+        
+        image_inner_layout.addWidget(self.image_label)
+        
+        # Image buttons
+        image_buttons_layout = QVBoxLayout()
+        image_buttons_layout.setSpacing(10)
+        
+        self.browse_btn = QPushButton("Browse...")
+        self.browse_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+        """)
+        self.browse_btn.clicked.connect(self.browse_image)
+        
+        self.clear_btn = QPushButton("Clear")
+        self.clear_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #475569;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #64748B;
+            }
+        """)
+        self.clear_btn.clicked.connect(self.clear_image)
+        
+        image_buttons_layout.addWidget(self.browse_btn)
+        image_buttons_layout.addWidget(self.clear_btn)
+        image_buttons_layout.addStretch()
+        
+        image_layout.addWidget(self.image_frame)
+        image_layout.addSpacing(10)
+        image_layout.addLayout(image_buttons_layout)
+        image_layout.addStretch()
+        
+        form_layout.addRow("Product Image:", image_layout)
+        
+        # Product name
+        self.name_input = QLineEdit()
+        self.name_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #1E293B;
+                color: #F8FAFC;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px;
+            }
+        """)
+        form_layout.addRow("Product Name:", self.name_input)
+        
+        # Product description
+        self.description_input = QTextEdit()
+        self.description_input.setStyleSheet("""
+            QTextEdit {
+                background-color: #1E293B;
+                color: #F8FAFC;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px;
+            }
+        """)
+        self.description_input.setMaximumHeight(100)
+        form_layout.addRow("Description:", self.description_input)
+        
+        # Production time
+        self.production_time_input = QDoubleSpinBox()
+        self.production_time_input.setRange(0.1, 1000)
+        self.production_time_input.setValue(1.0)
+        self.production_time_input.setSuffix(" hours")
+        self.production_time_input.setStyleSheet("""
+            QDoubleSpinBox {
+                background-color: #1E293B;
+                color: #F8FAFC;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+                background-color: #334155;
+                border: none;
+                border-radius: 2px;
+            }
+        """)
+        form_layout.addRow("Production Time:", self.production_time_input)
+        
+        # Production cost
+        self.production_cost_input = QDoubleSpinBox()
+        self.production_cost_input.setRange(0.01, 10000)
+        self.production_cost_input.setValue(10.0)
+        self.production_cost_input.setPrefix("$")
+        self.production_cost_input.setDecimals(2)
+        self.production_cost_input.setStyleSheet("""
+            QDoubleSpinBox {
+                background-color: #1E293B;
+                color: #F8FAFC;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+                background-color: #334155;
+                border: none;
+                border-radius: 2px;
+            }
+        """)
+        form_layout.addRow("Production Cost:", self.production_cost_input)
+        
+        # Initial quantity
+        self.initial_quantity_input = QSpinBox()
+        self.initial_quantity_input.setRange(0, 10000)
+        self.initial_quantity_input.setValue(0)
+        self.initial_quantity_input.setStyleSheet("""
+            QSpinBox {
+                background-color: #1E293B;
+                color: #F8FAFC;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QSpinBox::up-button, QSpinBox::down-button {
+                background-color: #334155;
+                border: none;
+                border-radius: 2px;
+            }
+        """)
+        form_layout.addRow("Initial Quantity:", self.initial_quantity_input)
+        
+        # Countries
+        self.countries_layout = QVBoxLayout()
+        self.countries_layout.setSpacing(5)
+        
+        self.countries_label = QLabel("Select countries where this product is sold:")
+        self.countries_label.setStyleSheet("color: #F8FAFC;")
+        
+        self.countries_scroll = QScrollArea()
+        self.countries_scroll.setWidgetResizable(True)
+        self.countries_scroll.setStyleSheet("""
+            QScrollArea {
+                background-color: #1E293B;
+                border: 1px solid #334155;
+                border-radius: 4px;
+            }
+        """)
+        
+        self.countries_widget = QWidget()
+        self.countries_layout.addWidget(self.countries_label)
+        self.countries_layout.addWidget(self.countries_scroll)
+        
+        self.countries_grid = QGridLayout(self.countries_widget)
+        self.countries_grid.setContentsMargins(10, 10, 10, 10)
+        self.countries_grid.setSpacing(10)
+        
+        self.countries_scroll.setWidget(self.countries_widget)
+        
+        # Load countries
+        self.load_countries()
+        
+        form_layout.addRow("Countries:", self.countries_layout)
+        
+        main_layout.addLayout(form_layout)
+        
+        # Buttons
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(10)
+        
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #475569;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #64748B;
+            }
+        """)
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        self.save_btn = QPushButton("Save")
+        self.save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+        """)
+        self.save_btn.clicked.connect(self.save_product)
+        
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.cancel_btn)
+        buttons_layout.addWidget(self.save_btn)
+        
+        main_layout.addLayout(buttons_layout)
+    
+    def load_countries(self):
+        """
+        Load countries into the grid.
+        """
+        try:
+            db = SessionLocal()
+            countries = db.query(Country).order_by(Country.name).all()
+            
+            # Create checkboxes for countries
+            self.country_checkboxes = {}
+            
+            for i, country in enumerate(countries):
+                checkbox = QCheckBox(country.name)
+                checkbox.setStyleSheet("""
+                    QCheckBox {
+                        color: #F8FAFC;
+                    }
+                    QCheckBox::indicator {
+                        width: 16px;
+                        height: 16px;
+                        border: 1px solid #334155;
+                        border-radius: 2px;
+                        background-color: #1E293B;
+                    }
+                    QCheckBox::indicator:checked {
+                        background-color: #3B82F6;
+                        border: 1px solid #3B82F6;
+                    }
+                """)
+                
+                self.country_checkboxes[country.id] = checkbox
+                
+                # Add to grid, 3 columns
+                row = i // 3
+                col = i % 3
+                
+                self.countries_grid.addWidget(checkbox, row, col)
+        except Exception as e:
+            logging.error(f"Error loading countries: {str(e)}")
+        finally:
+            db.close()
+    
+    def load_product_data(self):
+        """
+        Load product data into the form.
+        """
+        if not self.product:
+            return
+        
+        # Set product image
+        if self.product.image_path and os.path.exists(self.product.image_path):
+            pixmap = QPixmap(self.product.image_path)
+            self.image_label.setPixmap(pixmap)
+            self.image_path = self.product.image_path
+        
+        # Set product info
+        self.name_input.setText(self.product.name)
+        self.description_input.setText(self.product.description or "")
+        self.production_time_input.setValue(self.product.production_time)
+        self.production_cost_input.setValue(self.product.production_cost)
+        self.initial_quantity_input.setValue(self.product.initial_quantity)
+        
+        # Set countries
+        for country in self.product.countries:
+            if country.id in self.country_checkboxes:
+                self.country_checkboxes[country.id].setChecked(True)
+    
+    def browse_image(self):
+        """
+        Browse for a product image.
+        """
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Product Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp)"
+        )
+        
+        if file_path:
+            # Copy image to resources directory
+            resources_dir = "src/resources/images/products"
+            os.makedirs(resources_dir, exist_ok=True)
+            
+            # Generate a unique filename
+            filename = os.path.basename(file_path)
+            base_name, ext = os.path.splitext(filename)
+            new_filename = f"{base_name}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"
+            new_path = os.path.join(resources_dir, new_filename)
+            
+            # Copy file
+            try:
+                import shutil
+                shutil.copy2(file_path, new_path)
+                
+                # Update image
+                pixmap = QPixmap(new_path)
+                self.image_label.setPixmap(pixmap)
+                self.image_path = new_path
+            except Exception as e:
+                logging.error(f"Error copying image: {str(e)}")
+                QMessageBox.warning(self, "Error", f"Failed to copy image: {str(e)}")
+    
+    def clear_image(self):
+        """
+        Clear the product image.
+        """
+        pixmap = QPixmap("src/resources/icons/product_placeholder.png")
+        self.image_label.setPixmap(pixmap)
+        self.image_path = None
+    
+    def save_product(self):
+        """
+        Save the product data.
+        """
+        # Validate required fields
+        name = self.name_input.text().strip()
+        
+        if not name:
+            QMessageBox.warning(self, "Validation Error", "Product name is required.")
+            return
+        
+        try:
+            db = SessionLocal()
+            
+            if self.is_edit_mode:
+                # Update existing product
+                product = db.query(Product).filter(Product.id == self.product.id).first()
+                if not product:
+                    QMessageBox.warning(self, "Error", "Product not found.")
+                    return
+            else:
+                # Create new product
+                product = Product()
+                product.created_at = datetime.datetime.utcnow()
+                db.add(product)
+            
+            # Update product data
+            product.name = name
+            product.description = self.description_input.toPlainText().strip() or None
+            product.image_path = self.image_path
+            product.production_time = self.production_time_input.value()
+            product.production_cost = self.production_cost_input.value()
+            product.initial_quantity = self.initial_quantity_input.value()
+            product.updated_at = datetime.datetime.utcnow()
+            
+            # Update countries
+            product.countries = []
+            
+            for country_id, checkbox in self.country_checkboxes.items():
+                if checkbox.isChecked():
+                    country = db.query(Country).filter(Country.id == country_id).first()
+                    if country:
+                        product.countries.append(country)
+            
+            db.commit()
+            
+            logging.info(f"Product {product.name} {'updated' if self.is_edit_mode else 'created'}")
+            
+            self.accept()
+        except Exception as e:
+            logging.error(f"Error saving product: {str(e)}")
+            QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
+        finally:
+            db.close()
+
+
+class ProductsView(QWidget):
+    """
+    Products view for the application.
+    """
+    def __init__(self, db):
+        super().__init__()
+        
+        self.db = db
+        
+        self.setup_ui()
+        self.refresh_data()
+    
+    def setup_ui(self):
+        """
+        Set up the user interface.
+        """
+        # Main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
+        
+        # Header
+        header_layout = QHBoxLayout()
+        
+        header_title = QLabel("Products")
+        header_title.setStyleSheet("color: #F8FAFC; font-size: 20px; font-weight: bold;")
+        
+        # Search box
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(0)
+        
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search products...")
+        self.search_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #1E293B;
+                color: #F8FAFC;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px;
+            }
+        """)
+        self.search_input.textChanged.connect(self.filter_products)
+        
+        search_layout.addWidget(self.search_input)
+        
+        # Add product button
+        self.add_btn = QPushButton("Add Product")
+        self.add_btn.setIcon(QIcon("src/resources/icons/add.png"))
+        self.add_btn.setCursor(Qt.PointingHandCursor)
+        self.add_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+        """)
+        self.add_btn.clicked.connect(self.add_product)
+        
+        header_layout.addWidget(header_title)
+        header_layout.addStretch()
+        header_layout.addLayout(search_layout)
+        header_layout.addSpacing(10)
+        header_layout.addWidget(self.add_btn)
+        
+        main_layout.addLayout(header_layout)
+        
+        # Products grid
+        self.products_scroll = QScrollArea()
+        self.products_scroll.setWidgetResizable(True)
+        self.products_scroll.setStyleSheet("""
+            QScrollArea {
+                background-color: #0F172A;
+                border: none;
+            }
+        """)
+        
+        self.products_widget = QWidget()
+        self.products_widget.setStyleSheet("background-color: #0F172A;")
+        
+        self.products_grid = QGridLayout(self.products_widget)
+        self.products_grid.setContentsMargins(10, 10, 10, 10)
+        self.products_grid.setSpacing(20)
+        
+        self.products_scroll.setWidget(self.products_widget)
+        
+        main_layout.addWidget(self.products_scroll)
+    
+    def refresh_data(self):
+        """
+        Refresh the products data.
+        """
+        try:
+            # Clear products grid
+            for i in reversed(range(self.products_grid.count())):
+                widget = self.products_grid.itemAt(i).widget()
+                if widget:
+                    widget.deleteLater()
+            
+            # Get products
+            products = self.db.query(Product).all()
+            
+                # Add products to grid
+            for i, product in enumerate(products):
+                thumbnail = ProductThumbnail(product)
+                thumbnail.clicked.connect(self.view_product)
+                
+                # Add to grid, 4 columns
+                row = i // 4
+                col = i % 4
+                
+                self.products_grid.addWidget(thumbnail, row, col)
+            
+            logging.info("Products view refreshed")
+        except Exception as e:
+            logging.error(f"Error refreshing products data: {str(e)}")
+    
+    def filter_products(self):
+        """
+        Filter products based on search text.
+        """
+        search_text = self.search_input.text().lower()
+        
+        # Hide/show products based on search text
+        for i in range(self.products_grid.count()):
+            widget = self.products_grid.itemAt(i).widget()
+            if isinstance(widget, ProductThumbnail):
+                product_name = widget.product.name.lower()
+                widget.setVisible(search_text in product_name)
+    
+    def add_product(self):
+        """
+        Open the add product dialog.
+        """
+        dialog = ProductDialog(parent=self)
+        if dialog.exec():
+            # Refresh the view to show the new product
+            self.refresh_data()
+    
+    def view_product(self, product):
+        """
+        Open the product details dialog.
+        """
+        dialog = ProductDetailsDialog(product, self)
+        dialog.exec()
+    
+    def edit_product(self, product):
+        """
+        Open the edit product dialog.
+        """
+        dialog = ProductDialog(parent=self, product=product)
+        if dialog.exec():
+            # Refresh the view to show the updated product
+            self.refresh_data()
+    
+    def delete_product(self, product):
+        """
+        Delete a product.
+        """
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self, "Confirm Deletion", 
+            f"Are you sure you want to delete the product '{product.name}'?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                # Delete product
+                self.db.query(Product).filter(Product.id == product.id).delete()
+                self.db.commit()
+                
+                logging.info(f"Product {product.name} deleted")
+                
+                # Refresh the view
+                self.refresh_data()
+            except Exception as e:
+                logging.error(f"Error deleting product: {str(e)}")
+                QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")

@@ -16,6 +16,7 @@ from models import (
     PrintJob, CustomerEmail, PrinterStatus, OrderStatus, 
     PaymentStatus, PrintJobStatus, EmailStatus
 )
+from models.product import Product, Country, Sale
 import config
 
 
@@ -371,6 +372,259 @@ def create_demo_data():
         ]
         
         db.add_all(print_jobs)
+        db.commit()
+        
+        # Create demo countries
+        countries = [
+            Country(
+                name="United States",
+                code="US",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Country(
+                name="Canada",
+                code="CA",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Country(
+                name="United Kingdom",
+                code="GB",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Country(
+                name="France",
+                code="FR",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Country(
+                name="Germany",
+                code="DE",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Country(
+                name="Australia",
+                code="AU",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Country(
+                name="Japan",
+                code="JP",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            )
+        ]
+        
+        db.add_all(countries)
+        db.commit()
+        
+        # Create demo products
+        products = [
+            Product(
+                name="Miniature Fantasy Dragon",
+                description="Highly detailed fantasy dragon miniature, perfect for tabletop gaming.",
+                image_path="src/resources/images/products/dragon_miniature.jpg",
+                production_time=5.5,
+                production_cost=12.75,
+                initial_quantity=10,
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Product(
+                name="Architectural City Model",
+                description="Detailed scale model of a modern city block, ideal for architectural presentations.",
+                image_path="src/resources/images/products/city_model.jpg",
+                production_time=8.0,
+                production_cost=45.50,
+                initial_quantity=5,
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Product(
+                name="Custom Jewelry Pendant",
+                description="Elegant custom-designed pendant with intricate geometric patterns.",
+                image_path="src/resources/images/products/jewelry_pendant.jpg",
+                production_time=3.5,
+                production_cost=18.25,
+                initial_quantity=15,
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Product(
+                name="Mechanical Clock Model",
+                description="Working mechanical clock model with visible gears and mechanisms.",
+                image_path="src/resources/images/products/clock_model.jpg",
+                production_time=12.0,
+                production_cost=35.80,
+                initial_quantity=3,
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            )
+        ]
+        
+        db.add_all(products)
+        db.commit()
+        
+        # Associate products with countries
+        # Dragon miniature is sold in US, Canada, UK, and Australia
+        products[0].countries.extend([countries[0], countries[1], countries[2], countries[5]])
+        
+        # City model is sold in US, Canada, France, and Germany
+        products[1].countries.extend([countries[0], countries[1], countries[3], countries[4]])
+        
+        # Jewelry pendant is sold in all countries
+        products[2].countries.extend(countries)
+        
+        # Clock model is sold in US, UK, Germany, and Japan
+        products[3].countries.extend([countries[0], countries[2], countries[4], countries[6]])
+        
+        db.commit()
+        
+        # Create demo sales data
+        sales = [
+            # Dragon miniature sales
+            Sale(
+                product_id=1,
+                country_id=1,  # US
+                quantity=25,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=30),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=1,
+                country_id=2,  # Canada
+                quantity=12,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=25),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=1,
+                country_id=3,  # UK
+                quantity=18,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=20),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=1,
+                country_id=6,  # Australia
+                quantity=8,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=15),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            
+            # City model sales
+            Sale(
+                product_id=2,
+                country_id=1,  # US
+                quantity=10,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=28),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=2,
+                country_id=2,  # Canada
+                quantity=5,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=21),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=2,
+                country_id=4,  # France
+                quantity=8,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=14),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=2,
+                country_id=5,  # Germany
+                quantity=12,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=7),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            
+            # Jewelry pendant sales
+            Sale(
+                product_id=3,
+                country_id=1,  # US
+                quantity=30,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=29),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=3,
+                country_id=3,  # UK
+                quantity=22,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=22),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=3,
+                country_id=4,  # France
+                quantity=15,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=15),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=3,
+                country_id=7,  # Japan
+                quantity=18,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=8),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            
+            # Clock model sales
+            Sale(
+                product_id=4,
+                country_id=1,  # US
+                quantity=8,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=27),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=4,
+                country_id=3,  # UK
+                quantity=5,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=18),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=4,
+                country_id=5,  # Germany
+                quantity=7,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=9),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            Sale(
+                product_id=4,
+                country_id=7,  # Japan
+                quantity=10,
+                sale_date=datetime.datetime.utcnow() - datetime.timedelta(days=3),
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            )
+        ]
+        
+        db.add_all(sales)
         db.commit()
         
         # Create demo customer emails
