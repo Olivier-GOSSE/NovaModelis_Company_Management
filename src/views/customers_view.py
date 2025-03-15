@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/../..'))
 
 from database.base import SessionLocal
 from models import Customer, Order, CustomerEmail, EmailStatus
+from views.email_view import EmailComposeDialog
 import config
 
 
@@ -26,19 +27,79 @@ class CustomerDetailsDialog(QDialog):
     """
     Dialog for viewing and editing customer details.
     """
-    def __init__(self, customer=None, parent=None):
+    def __init__(self, customer=None, parent=None, read_only=False):
         super().__init__(parent)
         
         self.customer = customer
         self.is_edit_mode = customer is not None
+        self.read_only = read_only
         
-        self.setWindowTitle(f"{'Modifier' if self.is_edit_mode else 'Ajouter'} Client")
+        if self.read_only:
+            self.setWindowTitle(f"Voir Client")
+        else:
+            self.setWindowTitle(f"{'Modifier' if self.is_edit_mode else 'Ajouter'} Client")
+        
         self.setMinimumSize(500, 600)
         
         self.setup_ui()
         
         if self.is_edit_mode:
             self.load_customer_data()
+            
+        # If read-only mode, disable all inputs
+        if self.read_only:
+            self.set_read_only()
+    
+    def set_read_only(self):
+        """
+        Set all inputs to read-only mode.
+        """
+        # Disable all input fields
+        self.first_name_input.setReadOnly(True)
+        self.last_name_input.setReadOnly(True)
+        self.email_input.setReadOnly(True)
+        self.phone_input.setReadOnly(True)
+        self.address_line1_input.setReadOnly(True)
+        self.address_line2_input.setReadOnly(True)
+        self.city_input.setReadOnly(True)
+        self.state_province_input.setReadOnly(True)
+        self.postal_code_input.setReadOnly(True)
+        self.country_input.setReadOnly(True)
+        self.notes_input.setReadOnly(True)
+        
+        # Change the style of read-only inputs
+        read_only_style = """
+            QLineEdit {
+                background-color: #1E293B;
+                color: #94A3B8;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QTextEdit {
+                background-color: #1E293B;
+                color: #94A3B8;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px;
+            }
+        """
+        
+        self.first_name_input.setStyleSheet(read_only_style)
+        self.last_name_input.setStyleSheet(read_only_style)
+        self.email_input.setStyleSheet(read_only_style)
+        self.phone_input.setStyleSheet(read_only_style)
+        self.address_line1_input.setStyleSheet(read_only_style)
+        self.address_line2_input.setStyleSheet(read_only_style)
+        self.city_input.setStyleSheet(read_only_style)
+        self.state_province_input.setStyleSheet(read_only_style)
+        self.postal_code_input.setStyleSheet(read_only_style)
+        self.country_input.setStyleSheet(read_only_style)
+        self.notes_input.setStyleSheet(read_only_style)
+        
+        # Hide the save button, change cancel button to close
+        self.save_btn.setVisible(False)
+        self.cancel_btn.setText("Fermer")
     
     def setup_ui(self):
         """
@@ -463,6 +524,7 @@ class CustomersView(QWidget):
                     }
                 """)
                 view_btn.setToolTip("Voir le client")
+                view_btn.clicked.connect(lambda checked, c=customer: self.view_customer(c))
                 
                 # Edit button
                 edit_btn = QPushButton()
@@ -516,6 +578,7 @@ class CustomersView(QWidget):
                     }
                 """)
                 email_btn.setToolTip("Envoyer un email au client")
+                email_btn.clicked.connect(lambda checked, c=customer: self.send_email(c))
                 
                 actions_layout.addWidget(view_btn)
                 actions_layout.addWidget(edit_btn)
@@ -635,6 +698,13 @@ class CustomersView(QWidget):
             # Refresh the view to show the new customer
             self.refresh_data()
     
+    def view_customer(self, customer):
+        """
+        Open the view customer dialog in read-only mode.
+        """
+        dialog = CustomerDetailsDialog(customer, self, read_only=True)
+        dialog.exec()
+    
     def edit_customer(self, customer):
         """
         Open the edit customer dialog.
@@ -681,3 +751,12 @@ class CustomersView(QWidget):
             except Exception as e:
                 logging.error(f"Error deleting customer: {str(e)}")
                 QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def send_email(self, customer):
+        """
+        Open the compose email dialog for a customer.
+        """
+        dialog = EmailComposeDialog(parent=self, customer=customer)
+        if dialog.exec():
+            # Refresh the view to show the new email
+            self.refresh_data()
