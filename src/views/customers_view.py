@@ -508,6 +508,9 @@ class CustomersView(QWidget):
                 actions_layout.setContentsMargins(5, 0, 5, 0)
                 actions_layout.setSpacing(5)
                 
+                # Create a fixed copy of the customer for this row
+                customer_id = customer.id
+                
                 # View button
                 view_btn = QPushButton()
                 view_btn.setIcon(QIcon("src/resources/icons/view.png"))
@@ -524,7 +527,7 @@ class CustomersView(QWidget):
                     }
                 """)
                 view_btn.setToolTip("Voir le client")
-                view_btn.clicked.connect(lambda checked, c=customer: self.view_customer(c))
+                view_btn.clicked.connect(lambda checked=False, id=customer_id: self.view_customer_by_id(id))
                 
                 # Edit button
                 edit_btn = QPushButton()
@@ -542,7 +545,7 @@ class CustomersView(QWidget):
                     }
                 """)
                 edit_btn.setToolTip("Modifier le client")
-                edit_btn.clicked.connect(lambda checked, c=customer: self.edit_customer(c))
+                edit_btn.clicked.connect(lambda checked=False, id=customer_id: self.edit_customer_by_id(id))
                 
                 # Delete button
                 delete_btn = QPushButton()
@@ -560,7 +563,7 @@ class CustomersView(QWidget):
                     }
                 """)
                 delete_btn.setToolTip("Supprimer le client")
-                delete_btn.clicked.connect(lambda checked, c=customer: self.delete_customer(c))
+                delete_btn.clicked.connect(lambda checked=False, id=customer_id: self.delete_customer_by_id(id))
                 
                 # Email button
                 email_btn = QPushButton()
@@ -578,7 +581,7 @@ class CustomersView(QWidget):
                     }
                 """)
                 email_btn.setToolTip("Envoyer un email au client")
-                email_btn.clicked.connect(lambda checked, c=customer: self.send_email(c))
+                email_btn.clicked.connect(lambda checked=False, id=customer_id: self.send_email_by_id(id))
                 
                 actions_layout.addWidget(view_btn)
                 actions_layout.addWidget(edit_btn)
@@ -627,6 +630,9 @@ class CustomersView(QWidget):
                 actions_layout.setContentsMargins(5, 0, 5, 0)
                 actions_layout.setSpacing(5)
                 
+                # Create a fixed copy of the message ID for this row
+                message_id = message.id
+                
                 # View button
                 view_btn = QPushButton()
                 view_btn.setIcon(QIcon("src/resources/icons/view.png"))
@@ -643,6 +649,7 @@ class CustomersView(QWidget):
                     }
                 """)
                 view_btn.setToolTip("Voir le message")
+                view_btn.clicked.connect(lambda checked=False, id=message_id: self.view_message_by_id(id))
                 
                 # Reply button
                 reply_btn = QPushButton()
@@ -660,6 +667,7 @@ class CustomersView(QWidget):
                     }
                 """)
                 reply_btn.setToolTip("Répondre")
+                reply_btn.clicked.connect(lambda checked=False, id=message_id: self.reply_to_message_by_id(id))
                 
                 actions_layout.addWidget(view_btn)
                 actions_layout.addWidget(reply_btn)
@@ -760,3 +768,224 @@ class CustomersView(QWidget):
         if dialog.exec():
             # Refresh the view to show the new email
             self.refresh_data()
+    
+    def view_message(self, message):
+        """
+        View a message.
+        """
+        try:
+            # Mark message as read if it's unread
+            if message.status == EmailStatus.UNREAD:
+                message.status = EmailStatus.READ
+                self.db.commit()
+            
+            # Get customer
+            customer = self.db.query(Customer).filter(Customer.id == message.customer_id).first()
+            customer_name = f"{customer.first_name} {customer.last_name}" if customer else "Inconnu"
+            
+            # Create message dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle(message.subject)
+            dialog.setMinimumSize(500, 400)
+            
+            # Dialog layout
+            layout = QVBoxLayout(dialog)
+            layout.setContentsMargins(20, 20, 20, 20)
+            layout.setSpacing(15)
+            
+            # Message header
+            header_layout = QGridLayout()
+            header_layout.setColumnStretch(1, 1)
+            header_layout.setSpacing(10)
+            
+            # From/To
+            if message.is_incoming:
+                header_layout.addWidget(QLabel("De:"), 0, 0)
+                header_layout.addWidget(QLabel(customer_name), 0, 1)
+                header_layout.addWidget(QLabel("À:"), 1, 0)
+                header_layout.addWidget(QLabel("NovaModelis"), 1, 1)
+            else:
+                header_layout.addWidget(QLabel("De:"), 0, 0)
+                header_layout.addWidget(QLabel("NovaModelis"), 0, 1)
+                header_layout.addWidget(QLabel("À:"), 1, 0)
+                header_layout.addWidget(QLabel(customer_name), 1, 1)
+            
+            # Subject
+            header_layout.addWidget(QLabel("Sujet:"), 2, 0)
+            header_layout.addWidget(QLabel(message.subject), 2, 1)
+            
+            # Date
+            header_layout.addWidget(QLabel("Date:"), 3, 0)
+            header_layout.addWidget(QLabel(message.received_at.strftime("%d %b %Y %H:%M")), 3, 1)
+            
+            layout.addLayout(header_layout)
+            
+            # Separator
+            separator = QFrame()
+            separator.setFrameShape(QFrame.HLine)
+            separator.setFrameShadow(QFrame.Sunken)
+            separator.setStyleSheet("background-color: #334155;")
+            layout.addWidget(separator)
+            
+            # Message body
+            body_text = QTextEdit()
+            body_text.setReadOnly(True)
+            body_text.setText(message.body)
+            body_text.setStyleSheet("""
+                QTextEdit {
+                    background-color: #1E293B;
+                    color: #F8FAFC;
+                    border: 1px solid #334155;
+                    border-radius: 4px;
+                    padding: 8px;
+                }
+            """)
+            layout.addWidget(body_text)
+            
+            # Buttons
+            buttons_layout = QHBoxLayout()
+            buttons_layout.setSpacing(10)
+            
+            close_btn = QPushButton("Fermer")
+            close_btn.clicked.connect(dialog.accept)
+            
+            reply_btn = QPushButton("Répondre")
+            reply_btn.setIcon(QIcon("src/resources/icons/reply.png"))
+            reply_btn.clicked.connect(lambda: self.reply_to_message_from_dialog(message, dialog))
+            
+            buttons_layout.addStretch()
+            buttons_layout.addWidget(reply_btn)
+            buttons_layout.addWidget(close_btn)
+            
+            layout.addLayout(buttons_layout)
+            
+            # Show dialog
+            dialog.exec()
+            
+            # Refresh view to update message status
+            self.refresh_data()
+        except Exception as e:
+            logging.error(f"Error viewing message: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def reply_to_message(self, message):
+        """
+        Reply to a message.
+        """
+        try:
+            # Get customer
+            customer = self.db.query(Customer).filter(Customer.id == message.customer_id).first()
+            if not customer:
+                QMessageBox.warning(self, "Erreur", "Client non trouvé.")
+                return
+            
+            # Open compose dialog with pre-filled data
+            dialog = EmailComposeDialog(parent=self, customer=customer, reply_to=message)
+            if dialog.exec():
+                # Refresh the view to show the new email
+                self.refresh_data()
+        except Exception as e:
+            logging.error(f"Error replying to message: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def reply_to_message_from_dialog(self, message, parent_dialog):
+        """
+        Reply to a message from the view message dialog.
+        """
+        # Close the view dialog
+        parent_dialog.accept()
+        
+        # Open reply dialog
+        self.reply_to_message(message)
+    
+    def view_customer_by_id(self, customer_id):
+        """
+        Open the view customer dialog in read-only mode using customer ID.
+        """
+        try:
+            customer = self.db.query(Customer).filter(Customer.id == customer_id).first()
+            if customer:
+                self.view_customer(customer)
+            else:
+                QMessageBox.warning(self, "Erreur", "Client non trouvé.")
+        except Exception as e:
+            logging.error(f"Error viewing customer: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def edit_customer_by_id(self, customer_id):
+        """
+        Open the edit customer dialog using customer ID.
+        """
+        try:
+            customer = self.db.query(Customer).filter(Customer.id == customer_id).first()
+            if customer:
+                self.edit_customer(customer)
+            else:
+                QMessageBox.warning(self, "Erreur", "Client non trouvé.")
+        except Exception as e:
+            logging.error(f"Error editing customer: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def delete_customer_by_id(self, customer_id):
+        """
+        Delete a customer using customer ID.
+        """
+        try:
+            customer = self.db.query(Customer).filter(Customer.id == customer_id).first()
+            if customer:
+                self.delete_customer(customer)
+            else:
+                QMessageBox.warning(self, "Erreur", "Client non trouvé.")
+        except Exception as e:
+            logging.error(f"Error deleting customer: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def send_email_by_id(self, customer_id):
+        """
+        Open the compose email dialog for a customer using customer ID.
+        """
+        try:
+            customer = self.db.query(Customer).filter(Customer.id == customer_id).first()
+            if customer:
+                self.send_email(customer)
+            else:
+                QMessageBox.warning(self, "Erreur", "Client non trouvé.")
+        except Exception as e:
+            logging.error(f"Error sending email: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def view_message_by_id(self, message_id):
+        """
+        View a message using message ID.
+        """
+        try:
+            message = self.db.query(CustomerEmail).filter(CustomerEmail.id == message_id).first()
+            if message:
+                # Mark message as read if it's unread
+                if message.status == EmailStatus.UNREAD:
+                    message.status = EmailStatus.READ
+                    self.db.commit()
+                    
+                self.view_message(message)
+                
+                # Refresh the view to update message status
+                self.refresh_data()
+            else:
+                QMessageBox.warning(self, "Erreur", "Message non trouvé.")
+        except Exception as e:
+            logging.error(f"Error viewing message: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def reply_to_message_by_id(self, message_id):
+        """
+        Reply to a message using message ID.
+        """
+        try:
+            message = self.db.query(CustomerEmail).filter(CustomerEmail.id == message_id).first()
+            if message:
+                self.reply_to_message(message)
+            else:
+                QMessageBox.warning(self, "Erreur", "Message non trouvé.")
+        except Exception as e:
+            logging.error(f"Error replying to message: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")

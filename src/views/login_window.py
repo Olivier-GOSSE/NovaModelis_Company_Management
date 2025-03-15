@@ -119,8 +119,8 @@ class LoginWindow(QMainWindow):
         form_frame.setObjectName("loginForm")
         form_frame.setStyleSheet("""
             #loginForm {
-                background-color: #1E293B;
-                border-radius: 8px;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                border-radius: 12px;
             }
         """)
         
@@ -137,10 +137,10 @@ class LoginWindow(QMainWindow):
                 background-color: #334155;
                 color: #F8FAFC;
                 border: 1px solid #475569;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 10px;
-                min-height: 45px;
-                height: 45px;
+                min-height: 55px;
+                height: 55px;
                 font-size: 14px;
             }
             QLineEdit:focus {
@@ -161,10 +161,10 @@ class LoginWindow(QMainWindow):
                 background-color: #334155;
                 color: #F8FAFC;
                 border: 1px solid #475569;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 10px;
-                min-height: 45px;
-                height: 45px;
+                min-height: 55px;
+                height: 55px;
                 font-size: 14px;
             }
             QLineEdit:focus {
@@ -186,7 +186,7 @@ class LoginWindow(QMainWindow):
                 background-color: #3B82F6;
                 color: #F8FAFC;
                 border: none;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 10px;
                 font-weight: bold;
                 font-size: 16px;

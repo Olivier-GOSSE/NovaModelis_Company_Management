@@ -28,17 +28,51 @@ class EmailViewDialog(QDialog):
     Dialog for viewing an email.
     """
     def __init__(self, email=None, parent=None):
+        # For window dragging
+        self.dragging = False
+        self.drag_position = None
+        
         super().__init__(parent)
         
         self.email = email
         
-        self.setWindowTitle("Voir Email")
+        # Remove window frame and title bar
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        
+        # Set window transparency
+        self.setWindowOpacity(0.9)  # 10% transparency
+        
         self.setMinimumSize(700, 500)
         
         self.setup_ui()
         
         if self.email:
             self.load_email_data()
+    
+    def mousePressEvent(self, event):
+        """
+        Handle mouse press event for window dragging.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """
+        Handle mouse move event for window dragging.
+        """
+        if event.buttons() & Qt.LeftButton and self.dragging:
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        """
+        Handle mouse release event for window dragging.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            event.accept()
     
     def setup_ui(self):
         """
@@ -49,13 +83,47 @@ class EmailViewDialog(QDialog):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
         
+        # Custom title bar
+        title_bar_layout = QHBoxLayout()
+        title_bar_layout.setContentsMargins(0, 0, 0, 10)
+        
+        # Title
+        title_label = QLabel("Voir Email")
+        title_label.setStyleSheet("color: #F8FAFC; font-size: 18px; font-weight: bold;")
+        
+        # Close button
+        close_btn = QPushButton("×")  # Unicode multiplication sign as close icon
+        close_btn.setFixedSize(30, 30)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                font-size: 20px;
+                font-weight: bold;
+                border: none;
+                border-radius: 15px;
+            }
+            QPushButton:hover {
+                background-color: #EF4444;
+                color: #F8FAFC;
+            }
+        """)
+        close_btn.clicked.connect(self.reject)
+        
+        title_bar_layout.addWidget(title_label)
+        title_bar_layout.addStretch()
+        title_bar_layout.addWidget(close_btn)
+        
+        main_layout.addLayout(title_bar_layout)
+        
         # Email header
         header_frame = QFrame()
         header_frame.setObjectName("headerFrame")
         header_frame.setStyleSheet("""
             #headerFrame {
-                background-color: #1E293B;
-                border-radius: 8px;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                border-radius: 12px;
             }
         """)
         
@@ -101,8 +169,8 @@ class EmailViewDialog(QDialog):
         content_frame.setObjectName("contentFrame")
         content_frame.setStyleSheet("""
             #contentFrame {
-                background-color: #1E293B;
-                border-radius: 8px;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                border-radius: 12px;
             }
         """)
         
@@ -114,9 +182,10 @@ class EmailViewDialog(QDialog):
         self.content_text.setReadOnly(True)
         self.content_text.setStyleSheet("""
             QTextEdit {
-                background-color: #1E293B;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
                 color: #F8FAFC;
                 border: none;
+                border-radius: 12px;
             }
         """)
         
@@ -136,7 +205,7 @@ class EmailViewDialog(QDialog):
                 background-color: #3B82F6;
                 color: #F8FAFC;
                 border: none;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 8px 16px;
             }
             QPushButton:hover {
@@ -152,7 +221,7 @@ class EmailViewDialog(QDialog):
                 background-color: #475569;
                 color: #F8FAFC;
                 border: none;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 8px 16px;
             }
             QPushButton:hover {
@@ -198,7 +267,7 @@ class EmailViewDialog(QDialog):
         self.date_label.setText(f"Date: {self.email.received_at.strftime('%d %b %Y %H:%M')}")
         
         # Set content
-        self.content_text.setHtml(self.email.content)
+        self.content_text.setHtml(self.email.body)
         
         # Update email status to read if it's unread
         if self.email.is_incoming and self.email.status == EmailStatus.UNREAD:
@@ -242,22 +311,52 @@ class EmailComposeDialog(QDialog):
     Dialog for composing an email.
     """
     def __init__(self, parent=None, reply_to=None, customer=None):
+        # For window dragging
+        self.dragging = False
+        self.drag_position = None
+        
         super().__init__(parent)
         
         self.reply_to = reply_to
         self.customer = customer
         
-        if reply_to:
-            self.setWindowTitle("Répondre à l'email")
-        else:
-            self.setWindowTitle("Nouveau Email")
+        # Remove window frame and title bar
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         
-        self.setMinimumSize(700, 600)
+        # Set window transparency
+        self.setWindowOpacity(0.9)  # 10% transparency
+        
+        self.setFixedSize(700, 600)
         
         self.setup_ui()
         
         if reply_to and customer:
             self.prepare_reply()
+    
+    def mousePressEvent(self, event):
+        """
+        Handle mouse press event for window dragging.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """
+        Handle mouse move event for window dragging.
+        """
+        if event.buttons() & Qt.LeftButton and self.dragging:
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        """
+        Handle mouse release event for window dragging.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            event.accept()
     
     def setup_ui(self):
         """
@@ -267,6 +366,40 @@ class EmailComposeDialog(QDialog):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
+        
+        # Custom title bar
+        title_bar_layout = QHBoxLayout()
+        title_bar_layout.setContentsMargins(0, 0, 0, 10)
+        
+        # Title
+        title_label = QLabel("Répondre à l'email" if self.reply_to else "Nouveau Email")
+        title_label.setStyleSheet("color: #F8FAFC; font-size: 18px; font-weight: bold;")
+        
+        # Close button
+        close_btn = QPushButton("×")  # Unicode multiplication sign as close icon
+        close_btn.setFixedSize(30, 30)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                font-size: 20px;
+                font-weight: bold;
+                border: none;
+                border-radius: 15px;
+            }
+            QPushButton:hover {
+                background-color: #EF4444;
+                color: #F8FAFC;
+            }
+        """)
+        close_btn.clicked.connect(self.reject)
+        
+        title_bar_layout.addWidget(title_label)
+        title_bar_layout.addStretch()
+        title_bar_layout.addWidget(close_btn)
+        
+        main_layout.addLayout(title_bar_layout)
         
         # Form layout for header fields
         form_layout = QFormLayout()
@@ -279,6 +412,9 @@ class EmailComposeDialog(QDialog):
         
         # To field
         self.to_input = QLineEdit()
+        # If customer is provided, pre-fill the recipient field
+        if self.customer and not self.reply_to:
+            self.to_input.setText(self.customer.email)
         form_layout.addRow("À:", self.to_input)
         
         # Subject field
@@ -292,15 +428,40 @@ class EmailComposeDialog(QDialog):
         self.content_text.setMinimumHeight(300)
         self.content_text.setStyleSheet("""
             QTextEdit {
-                background-color: #1E293B;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
                 color: #F8FAFC;
                 border: 1px solid #334155;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 8px;
             }
         """)
         
         main_layout.addWidget(self.content_text)
+        
+        # Attachments
+        attachments_layout = QHBoxLayout()
+        
+        self.attach_btn = QPushButton("Joindre un fichier")
+        self.attach_btn.setIcon(QIcon("src/resources/icons/attachment.png"))
+        self.attach_btn.setCursor(Qt.PointingHandCursor)
+        self.attach_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 12px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #475569;
+            }
+        """)
+        self.attach_btn.clicked.connect(self.attach_file)
+        
+        attachments_layout.addWidget(self.attach_btn)
+        attachments_layout.addStretch()
+        
+        main_layout.addLayout(attachments_layout)
         
         # Buttons
         buttons_layout = QHBoxLayout()
@@ -314,7 +475,7 @@ class EmailComposeDialog(QDialog):
                 background-color: #3B82F6;
                 color: #F8FAFC;
                 border: none;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 8px 16px;
             }
             QPushButton:hover {
@@ -330,7 +491,7 @@ class EmailComposeDialog(QDialog):
                 background-color: #475569;
                 color: #F8FAFC;
                 border: none;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 8px 16px;
             }
             QPushButton:hover {
@@ -355,6 +516,14 @@ class EmailComposeDialog(QDialog):
         self.from_combo.addItem("support@novamodelisapp.com", "support@novamodelisapp.com")
         self.from_combo.addItem("sales@novamodelisapp.com", "sales@novamodelisapp.com")
     
+    def attach_file(self):
+        """
+        Open a file dialog to select a file to attach to the email.
+        """
+        # In a real application, this would open a file dialog and attach the selected file
+        # For this demo, we'll just show a message
+        QMessageBox.information(self, "Joindre un fichier", "Fonctionnalité de pièce jointe à implémenter.")
+    
     def prepare_reply(self):
         """
         Prepare the reply to an email.
@@ -376,7 +545,7 @@ class EmailComposeDialog(QDialog):
         original_date = self.reply_to.received_at.strftime("%d %b %Y %H:%M")
         quoted_content = f"<br><br>Le {original_date}, {self.customer.first_name} {self.customer.last_name} a écrit:<br>"
         quoted_content += f"<blockquote style='border-left: 2px solid #3B82F6; padding-left: 10px; color: #94A3B8;'>"
-        quoted_content += f"{self.reply_to.content}"
+        quoted_content += f"{self.reply_to.body}"
         quoted_content += "</blockquote>"
         
         self.content_text.setHtml(quoted_content)
@@ -428,7 +597,7 @@ class EmailComposeDialog(QDialog):
             email.from_email = from_email
             email.to_email = to_email
             email.subject = subject
-            email.content = content
+            email.body = content
             email.is_incoming = False
             email.status = EmailStatus.SENT
             email.received_at = datetime.datetime.utcnow()
@@ -484,10 +653,10 @@ class EmailView(QWidget):
         self.search_input.setPlaceholderText("Rechercher des emails...")
         self.search_input.setStyleSheet("""
             QLineEdit {
-                background-color: #1E293B;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
                 color: #F8FAFC;
                 border: 1px solid #334155;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 8px;
             }
         """)
@@ -504,7 +673,7 @@ class EmailView(QWidget):
                 background-color: #3B82F6;
                 color: #F8FAFC;
                 border: none;
-                border-radius: 4px;
+                border-radius: 12px;
                 padding: 8px 16px;
             }
             QPushButton:hover {
@@ -525,8 +694,8 @@ class EmailView(QWidget):
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet("""
             QTabWidget::pane {
-                background-color: #1E293B;
-                border-radius: 8px;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                border-radius: 12px;
                 border: none;
             }
             QTabBar::tab {
@@ -539,11 +708,11 @@ class EmailView(QWidget):
                 border-top-right-radius: 8px;
             }
             QTabBar::tab:selected {
-                background-color: #1E293B;
+                background-color: rgba(30, 41, 59, 0.9); /* Match the pane */
                 color: #F8FAFC;
             }
             QTabBar::tab:hover:!selected {
-                background-color: #1E293B;
+                background-color: rgba(30, 41, 59, 0.9); /* Match the pane */
                 color: #F8FAFC;
             }
         """)
@@ -583,8 +752,8 @@ class EmailView(QWidget):
         self.inbox_table.setAlternatingRowColors(True)
         self.inbox_table.setStyleSheet("""
             QTableWidget {
-                background-color: #1E293B;
-                border-radius: 8px;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                border-radius: 12px;
                 border: none;
                 gridline-color: #334155;
             }
@@ -629,8 +798,8 @@ class EmailView(QWidget):
         self.sent_table.setAlternatingRowColors(True)
         self.sent_table.setStyleSheet("""
             QTableWidget {
-                background-color: #1E293B;
-                border-radius: 8px;
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                border-radius: 12px;
                 border: none;
                 gridline-color: #334155;
             }
@@ -959,11 +1128,14 @@ class EmailView(QWidget):
             finally:
                 db.close()
     
-    def compose_email(self):
+    def compose_email(self, customer=None):
         """
         Open the compose email dialog.
+        
+        Args:
+            customer: Optional customer to pre-fill the recipient field.
         """
-        dialog = EmailComposeDialog(parent=self)
+        dialog = EmailComposeDialog(parent=self, customer=customer)
         if dialog.exec():
             # Refresh the view to show the new email
             self.refresh_data()
