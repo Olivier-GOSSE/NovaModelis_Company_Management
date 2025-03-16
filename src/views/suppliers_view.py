@@ -18,7 +18,8 @@ from PySide6.QtGui import QIcon, QFont, QColor, QPainter
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/../..'))
 
 from database.base import SessionLocal
-from models import Supplier
+from models import Supplier, SupplierEmail, EmailStatus
+from views.supplier_email_view import SupplierEmailComposeDialog, SupplierEmailViewDialog
 import config
 
 
@@ -401,7 +402,7 @@ class SuppliersView(QWidget):
         
         # Add supplier button
         self.add_btn = QPushButton("Ajouter un fournisseur")
-        self.add_btn.setIcon(QIcon("src/resources/icons/add.png"))
+        self.add_btn.setIcon(QIcon("src/resources/icons/add_2.png"))
         self.add_btn.setCursor(Qt.PointingHandCursor)
         self.add_btn.setStyleSheet("""
             QPushButton {
@@ -462,37 +463,86 @@ class SuppliersView(QWidget):
         
         main_layout.addWidget(self.suppliers_table)
         
-        # Supplier details
-        details_frame = QFrame()
-        details_frame.setObjectName("detailsFrame")
-        details_frame.setStyleSheet("""
-            #detailsFrame {
+        # Recent messages
+        messages_frame = QFrame()
+        messages_frame.setObjectName("messagesFrame")
+        messages_frame.setStyleSheet("""
+            #messagesFrame {
                 background-color: #1E293B;
                 border-radius: 8px;
             }
         """)
         
-        details_layout = QVBoxLayout(details_frame)
-        details_layout.setContentsMargins(15, 15, 15, 15)
-        details_layout.setSpacing(10)
+        messages_layout = QVBoxLayout(messages_frame)
+        messages_layout.setContentsMargins(15, 15, 15, 15)
+        messages_layout.setSpacing(10)
         
-        details_header = QHBoxLayout()
-        details_title = QLabel("Détails du fournisseur")
-        details_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
+        messages_header = QHBoxLayout()
+        messages_title = QLabel("Messages récents")
+        messages_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
-        details_header.addWidget(details_title)
-        details_header.addStretch()
+        # Compose email button
+        compose_btn = QPushButton("Nouveau message")
+        compose_btn.setIcon(QIcon("src/resources/icons/email.png"))
+        compose_btn.setCursor(Qt.PointingHandCursor)
+        compose_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #1E293B;
+                color: #F8FAFC;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #334155;
+            }
+        """)
+        compose_btn.clicked.connect(self.compose_email)
         
-        details_layout.addLayout(details_header)
+        messages_header.addWidget(messages_title)
+        messages_header.addStretch()
+        messages_header.addWidget(compose_btn)
         
-        # Supplier details content
-        details_content = QLabel("Sélectionnez un fournisseur pour voir les détails")
-        details_content.setAlignment(Qt.AlignCenter)
-        details_content.setStyleSheet("color: #94A3B8; font-size: 14px;")
+        messages_layout.addLayout(messages_header)
         
-        details_layout.addWidget(details_content)
+        # Messages table
+        self.messages_table = QTableWidget()
+        self.messages_table.setColumnCount(5)
+        self.messages_table.setHorizontalHeaderLabels([
+            "Fournisseur", "Sujet", "Date", "Statut", "Actions"
+        ])
+        self.messages_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.messages_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
+        self.messages_table.verticalHeader().setVisible(False)
+        self.messages_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.messages_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.messages_table.setAlternatingRowColors(True)
+        self.messages_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #1E293B;
+                border-radius: 8px;
+                border: none;
+                gridline-color: #334155;
+            }
+            QHeaderView::section {
+                background-color: #0F172A;
+                color: #94A3B8;
+                border: none;
+                padding: 5px;
+            }
+            QTableWidget::item {
+                color: #F8FAFC;
+                border: none;
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #334155;
+            }
+        """)
         
-        main_layout.addWidget(details_frame)
+        messages_layout.addWidget(self.messages_table)
+        
+        main_layout.addWidget(messages_frame)
     
     def refresh_data(self):
         """
@@ -502,6 +552,19 @@ class SuppliersView(QWidget):
             # Get all suppliers
             suppliers = self.db.query(Supplier).all()
             
+            self.refresh_suppliers(suppliers)
+            self.refresh_messages()
+        except Exception as e:
+            logging.error(f"Error refreshing suppliers data: {str(e)}")
+    
+    def refresh_suppliers(self, suppliers):
+        """
+        Refresh the suppliers table.
+        
+        Args:
+            suppliers: List of suppliers to display.
+        """
+        try:
             # Populate suppliers table
             self.suppliers_table.setRowCount(len(suppliers))
             
@@ -721,4 +784,221 @@ class SuppliersView(QWidget):
                 QMessageBox.warning(self, "Erreur", "Fournisseur non trouvé.")
         except Exception as e:
             logging.error(f"Error deleting supplier: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def refresh_messages(self):
+        """
+        Refresh the messages table.
+        """
+        try:
+            # Get all emails
+            emails = self.db.query(SupplierEmail).order_by(SupplierEmail.received_at.desc()).limit(10).all()
+            
+            # Populate messages table
+            self.messages_table.setRowCount(len(emails))
+            
+            # Set row height for better icon visibility
+            for i in range(len(emails)):
+                self.messages_table.setRowHeight(i, 40)
+                
+            for i, email in enumerate(emails):
+                # Supplier
+                supplier = self.db.query(Supplier).filter(Supplier.id == email.supplier_id).first()
+                supplier_name = supplier.company_name if supplier else "Inconnu"
+                supplier_item = QTableWidgetItem(supplier_name)
+                
+                # Make unread emails bold
+                if email.status == EmailStatus.UNREAD:
+                    font = supplier_item.font()
+                    font.setBold(True)
+                    supplier_item.setFont(font)
+                
+                self.messages_table.setItem(i, 0, supplier_item)
+                
+                # Subject
+                subject_item = QTableWidgetItem(email.subject)
+                
+                # Make unread emails bold
+                if email.status == EmailStatus.UNREAD:
+                    font = subject_item.font()
+                    font.setBold(True)
+                    subject_item.setFont(font)
+                
+                self.messages_table.setItem(i, 1, subject_item)
+                
+                # Date
+                date_item = QTableWidgetItem(email.received_at.strftime("%d %b %Y %H:%M"))
+                self.messages_table.setItem(i, 2, date_item)
+                
+                # Status
+                status_text = email.status.value.capitalize()
+                if email.status == EmailStatus.UNREAD:
+                    status_text = "Nouveau"
+                
+                status_item = QTableWidgetItem(status_text)
+                self.messages_table.setItem(i, 3, status_item)
+                
+                # Actions
+                actions_widget = QWidget()
+                actions_layout = QHBoxLayout(actions_widget)
+                actions_layout.setContentsMargins(5, 0, 5, 0)
+                actions_layout.setSpacing(5)
+                
+                # Create a fixed copy of the email for this row
+                email_id = email.id
+                
+                # View button
+                view_btn = QPushButton()
+                view_btn.setIcon(QIcon("src/resources/icons/view.png"))
+                view_btn.setIconSize(QSize(16, 16))
+                view_btn.setFixedSize(30, 30)
+                view_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #334155;
+                        border-radius: 15px;
+                        border: none;
+                    }
+                    QPushButton:hover {
+                        background-color: #475569;
+                    }
+                """)
+                view_btn.setToolTip("Voir le message")
+                view_btn.clicked.connect(lambda checked=False, id=email_id: self.view_message(id))
+                
+                # Reply button
+                reply_btn = QPushButton()
+                reply_btn.setIcon(QIcon("src/resources/icons/reply.png"))
+                reply_btn.setIconSize(QSize(16, 16))
+                reply_btn.setFixedSize(30, 30)
+                reply_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #334155;
+                        border-radius: 15px;
+                        border: none;
+                    }
+                    QPushButton:hover {
+                        background-color: #475569;
+                    }
+                """)
+                reply_btn.setToolTip("Répondre")
+                reply_btn.clicked.connect(lambda checked=False, id=email_id: self.reply_to_message(id))
+                
+                # Delete button
+                delete_btn = QPushButton()
+                delete_btn.setIcon(QIcon("src/resources/icons/delete.png"))
+                delete_btn.setIconSize(QSize(16, 16))
+                delete_btn.setFixedSize(30, 30)
+                delete_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #334155;
+                        border-radius: 15px;
+                        border: none;
+                    }
+                    QPushButton:hover {
+                        background-color: #475569;
+                    }
+                """)
+                delete_btn.setToolTip("Supprimer")
+                delete_btn.clicked.connect(lambda checked=False, id=email_id: self.delete_message(id))
+                
+                actions_layout.addWidget(view_btn)
+                actions_layout.addWidget(reply_btn)
+                actions_layout.addWidget(delete_btn)
+                actions_layout.addStretch()
+                
+                self.messages_table.setCellWidget(i, 4, actions_widget)
+            
+            logging.info("Messages refreshed")
+        except Exception as e:
+            logging.error(f"Error refreshing messages: {str(e)}")
+    
+    def compose_email(self, supplier=None):
+        """
+        Open the compose email dialog.
+        
+        Args:
+            supplier: Optional supplier to pre-fill the recipient field.
+        """
+        dialog = SupplierEmailComposeDialog(parent=self, supplier=supplier)
+        if dialog.exec():
+            # Refresh the view to show the new email
+            self.refresh_messages()
+    
+    def view_message(self, email_id):
+        """
+        Open the email view dialog.
+        
+        Args:
+            email_id: ID of the email to view.
+        """
+        try:
+            email = self.db.query(SupplierEmail).filter(SupplierEmail.id == email_id).first()
+            if email:
+                dialog = SupplierEmailViewDialog(email, self)
+                if dialog.exec():
+                    # Refresh the view to show updated status
+                    self.refresh_messages()
+            else:
+                QMessageBox.warning(self, "Erreur", "Message non trouvé.")
+        except Exception as e:
+            logging.error(f"Error viewing message: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def reply_to_message(self, email_id):
+        """
+        Open the compose dialog to reply to an email.
+        
+        Args:
+            email_id: ID of the email to reply to.
+        """
+        try:
+            email = self.db.query(SupplierEmail).filter(SupplierEmail.id == email_id).first()
+            if email:
+                supplier = self.db.query(Supplier).filter(Supplier.id == email.supplier_id).first()
+                if supplier:
+                    dialog = SupplierEmailComposeDialog(
+                        parent=self,
+                        reply_to=email,
+                        supplier=supplier
+                    )
+                    if dialog.exec():
+                        # Refresh the view to show the new email
+                        self.refresh_messages()
+                else:
+                    QMessageBox.warning(self, "Erreur", "Fournisseur non trouvé.")
+            else:
+                QMessageBox.warning(self, "Erreur", "Message non trouvé.")
+        except Exception as e:
+            logging.error(f"Error replying to message: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+    
+    def delete_message(self, email_id):
+        """
+        Delete an email.
+        
+        Args:
+            email_id: ID of the email to delete.
+        """
+        try:
+            email = self.db.query(SupplierEmail).filter(SupplierEmail.id == email_id).first()
+            if email:
+                # Confirm deletion
+                reply = QMessageBox.question(
+                    self, "Confirmer la suppression", 
+                    "Êtes-vous sûr de vouloir supprimer ce message ?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+                )
+                
+                if reply == QMessageBox.Yes:
+                    self.db.query(SupplierEmail).filter(SupplierEmail.id == email_id).delete()
+                    self.db.commit()
+                    
+                    logging.info(f"Message deleted: {email.subject}")
+                    
+                    # Refresh the view
+                    self.refresh_messages()
+            else:
+                QMessageBox.warning(self, "Erreur", "Message non trouvé.")
+        except Exception as e:
+            logging.error(f"Error deleting message: {str(e)}")
             QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")

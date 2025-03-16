@@ -69,6 +69,7 @@ from .order import Order, OrderItem
 from .print_job import PrintJob
 from .customer_email import CustomerEmail
 from .supplier import Supplier
+from .supplier_email import SupplierEmail
 
 # Export all models
 __all__ = [
@@ -81,6 +82,7 @@ __all__ = [
     "PrintJob",
     "CustomerEmail",
     "Supplier",
+    "SupplierEmail",
     "PrinterStatus",
     "OrderStatus",
     "PaymentStatus",

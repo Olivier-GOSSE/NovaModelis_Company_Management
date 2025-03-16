@@ -30,6 +30,9 @@ class Supplier(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     
+    # Relationships
+    emails = relationship("SupplierEmail", back_populates="supplier", cascade="all, delete-orphan")
+    
     @property
     def full_name(self):
         """
