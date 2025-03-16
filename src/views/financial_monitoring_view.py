@@ -47,21 +47,24 @@ class KPICard(QFrame):
         main_layout.setSpacing(5)
         
         # Title
-        title_label = QLabel(title)
-        title_label.setStyleSheet("color: #CBD5E1; font-size: 16px; font-weight: bold;")
+        self.title_label = QLabel(title)
+        self.title_label.setObjectName("titleLabel")
+        self.title_label.setStyleSheet("color: #CBD5E1; font-size: 16px; font-weight: bold;")
         
         # Value
         value_layout = QHBoxLayout()
         value_layout.setSpacing(5)
         
-        value_label = QLabel(f"{value}")
-        value_label.setStyleSheet("color: #F8FAFC; font-size: 24px; font-weight: bold;")
+        self.value_label = QLabel(f"{value}")
+        self.value_label.setObjectName("valueLabel")
+        self.value_label.setStyleSheet("color: #F8FAFC; font-size: 24px; font-weight: bold;")
         
-        unit_label = QLabel(unit)
-        unit_label.setStyleSheet("color: #94A3B8; font-size: 14px; margin-top: 5px;")
+        self.unit_label = QLabel(unit)
+        self.unit_label.setObjectName("unitLabel")
+        self.unit_label.setStyleSheet("color: #94A3B8; font-size: 14px; margin-top: 5px;")
         
-        value_layout.addWidget(value_label)
-        value_layout.addWidget(unit_label)
+        value_layout.addWidget(self.value_label)
+        value_layout.addWidget(self.unit_label)
         value_layout.addStretch()
         
         # Change
@@ -71,7 +74,7 @@ class KPICard(QFrame):
             f"font-size: 14px; font-weight: bold;"
         )
         
-        main_layout.addWidget(title_label)
+        main_layout.addWidget(self.title_label)
         main_layout.addLayout(value_layout)
         main_layout.addWidget(change_label)
 
@@ -597,15 +600,15 @@ class FinancialMonitoringView(QWidget):
         cash_flow = random.randint(5000, 30000)
         roi = random.randint(5, 25)
         
-        self.revenue_card.findChild(QLabel, "", Qt.FindDirectChildrenOnly).setText(f"{revenue:,}".replace(",", " "))
-        self.profit_card.findChild(QLabel, "", Qt.FindDirectChildrenOnly).setText(f"{profit:,}".replace(",", " "))
-        self.gross_margin_card.findChild(QLabel, "", Qt.FindDirectChildrenOnly).setText(f"{gross_margin}")
-        self.net_margin_card.findChild(QLabel, "", Qt.FindDirectChildrenOnly).setText(f"{net_margin}")
+        self.revenue_card.value_label.setText(f"{revenue:,}".replace(",", " "))
+        self.profit_card.value_label.setText(f"{profit:,}".replace(",", " "))
+        self.gross_margin_card.value_label.setText(f"{gross_margin}")
+        self.net_margin_card.value_label.setText(f"{net_margin}")
         
-        self.accounts_receivable_card.findChild(QLabel, "", Qt.FindDirectChildrenOnly).setText(f"{accounts_receivable:,}".replace(",", " "))
-        self.accounts_payable_card.findChild(QLabel, "", Qt.FindDirectChildrenOnly).setText(f"{accounts_payable:,}".replace(",", " "))
-        self.cash_flow_card.findChild(QLabel, "", Qt.FindDirectChildrenOnly).setText(f"{cash_flow:,}".replace(",", " "))
-        self.roi_card.findChild(QLabel, "", Qt.FindDirectChildrenOnly).setText(f"{roi}")
+        self.accounts_receivable_card.value_label.setText(f"{accounts_receivable:,}".replace(",", " "))
+        self.accounts_payable_card.value_label.setText(f"{accounts_payable:,}".replace(",", " "))
+        self.cash_flow_card.value_label.setText(f"{cash_flow:,}".replace(",", " "))
+        self.roi_card.value_label.setText(f"{roi}")
         
         # Update trends chart
         self.revenue_series.clear()
