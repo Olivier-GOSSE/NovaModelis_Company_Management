@@ -108,55 +108,71 @@ class ProductThumbnail(QWidget):
         """
         Handle mouse enter event.
         """
-        self.is_hovered = True
-        self.update()
-        super().enterEvent(event)
+        try:
+            self.is_hovered = True
+            self.update()
+            super().enterEvent(event)
+        except RuntimeError:
+            # Object might have been deleted, ignore the event
+            pass
     
     def leaveEvent(self, event):
         """
         Handle mouse leave event.
         """
-        self.is_hovered = False
-        self.update()
-        super().leaveEvent(event)
+        try:
+            self.is_hovered = False
+            self.update()
+            super().leaveEvent(event)
+        except RuntimeError:
+            # Object might have been deleted, ignore the event
+            pass
     
     def mousePressEvent(self, event):
         """
         Handle mouse press event.
         """
-        if event.button() == Qt.LeftButton:
-            self.clicked.emit(self.product)
-        super().mousePressEvent(event)
+        try:
+            if event.button() == Qt.LeftButton:
+                self.clicked.emit(self.product)
+            super().mousePressEvent(event)
+        except RuntimeError:
+            # Object might have been deleted, ignore the event
+            pass
     
     def paintEvent(self, event):
         """
         Paint the widget.
         """
-        super().paintEvent(event)
-        
-        if self.is_hovered:
-            # Create a copy of the original pixmap to work with
-            pixmap_copy = QPixmap(self.image_label.pixmap())
+        try:
+            super().paintEvent(event)
             
-            # Create a larger version of the image for hover effect
-            enlarged_pixmap = self.original_pixmap.scaled(
-                int(self.image_label.width() * self.zoom_factor),
-                int(self.image_label.height() * self.zoom_factor),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
-            )
-            
-            # Calculate position to center the enlarged image
-            x_offset = (enlarged_pixmap.width() - self.image_label.width()) // 2
-            y_offset = (enlarged_pixmap.height() - self.image_label.height()) // 2
-            
-            # Create a painter for the pixmap copy
-            painter = QPainter(pixmap_copy)
-            painter.drawPixmap(-x_offset, -y_offset, enlarged_pixmap)
-            painter.end()  # Explicitly end the painter before setting the pixmap
-            
-            # Set the modified pixmap to the label
-            self.image_label.setPixmap(pixmap_copy)
+            if self.is_hovered:
+                # Create a copy of the original pixmap to work with
+                pixmap_copy = QPixmap(self.image_label.pixmap())
+                
+                # Create a larger version of the image for hover effect
+                enlarged_pixmap = self.original_pixmap.scaled(
+                    int(self.image_label.width() * self.zoom_factor),
+                    int(self.image_label.height() * self.zoom_factor),
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation
+                )
+                
+                # Calculate position to center the enlarged image
+                x_offset = (enlarged_pixmap.width() - self.image_label.width()) // 2
+                y_offset = (enlarged_pixmap.height() - self.image_label.height()) // 2
+                
+                # Create a painter for the pixmap copy
+                painter = QPainter(pixmap_copy)
+                painter.drawPixmap(-x_offset, -y_offset, enlarged_pixmap)
+                painter.end()  # Explicitly end the painter before setting the pixmap
+                
+                # Set the modified pixmap to the label
+                self.image_label.setPixmap(pixmap_copy)
+        except RuntimeError:
+            # Object might have been deleted, ignore the event
+            pass
 
 
 class WorldMapWidget(QWidget):

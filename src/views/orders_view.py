@@ -623,18 +623,18 @@ class OrdersView(QWidget):
         
         # Add order button
         self.add_btn = QPushButton("Ajouter une commande")
-        self.add_btn.setIcon(QIcon("src/resources/icons/add.png"))
+        self.add_btn.setIcon(QIcon("src/resources/icons/add_2.png"))
         self.add_btn.setCursor(Qt.PointingHandCursor)
         self.add_btn.setStyleSheet("""
             QPushButton {
-                background-color: #3B82F6;
+                background-color: #1E293B;
                 color: #F8FAFC;
-                border: none;
+                border: 1px solid #334155;
                 border-radius: 4px;
                 padding: 8px 16px;
             }
             QPushButton:hover {
-                background-color: #2563EB;
+                background-color: #334155;
             }
         """)
         self.add_btn.clicked.connect(self.add_order)
@@ -782,7 +782,7 @@ class OrdersView(QWidget):
                 view_btn = QPushButton()
                 view_btn.setIcon(QIcon("src/resources/icons/view.png"))
                 view_btn.setIconSize(QSize(16, 16))
-                view_btn.setFixedSize(30, 30)
+                view_btn.setFixedSize(26, 26)
                 view_btn.setStyleSheet("""
                     QPushButton {
                         background-color: #334155;
@@ -800,7 +800,7 @@ class OrdersView(QWidget):
                 edit_btn = QPushButton()
                 edit_btn.setIcon(QIcon("src/resources/icons/edit.png"))
                 edit_btn.setIconSize(QSize(16, 16))
-                edit_btn.setFixedSize(30, 30)
+                edit_btn.setFixedSize(26, 26)
                 edit_btn.setStyleSheet("""
                     QPushButton {
                         background-color: #334155;
@@ -818,7 +818,7 @@ class OrdersView(QWidget):
                 invoice_btn = QPushButton()
                 invoice_btn.setIcon(QIcon("src/resources/icons/invoice.png"))
                 invoice_btn.setIconSize(QSize(16, 16))
-                invoice_btn.setFixedSize(30, 30)
+                invoice_btn.setFixedSize(26, 26)
                 invoice_btn.setStyleSheet("""
                     QPushButton {
                         background-color: #334155;
@@ -836,7 +836,7 @@ class OrdersView(QWidget):
                 shipping_btn = QPushButton()
                 shipping_btn.setIcon(QIcon("src/resources/icons/shipping.png"))
                 shipping_btn.setIconSize(QSize(16, 16))
-                shipping_btn.setFixedSize(30, 30)
+                shipping_btn.setFixedSize(26, 26)
                 shipping_btn.setStyleSheet("""
                     QPushButton {
                         background-color: #334155;

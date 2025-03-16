@@ -23,6 +23,7 @@ from views.customers_view import CustomersView
 from views.orders_view import OrdersView
 from views.settings_view import SettingsView
 from views.products_view import ProductsView
+from views.suppliers_view import SuppliersView
 import config
 
 
@@ -103,7 +104,7 @@ class MainWindow(QMainWindow):
         # Dashboard button
         self.dashboard_btn = QPushButton("Tableau de bord")
         self.dashboard_btn.setIcon(QIcon("src/resources/icons/dashboard.png"))
-        self.dashboard_btn.setIconSize(QSize(18, 18))
+        self.dashboard_btn.setIconSize(QSize(36, 36))
         self.dashboard_btn.setCursor(Qt.PointingHandCursor)
         self.dashboard_btn.setCheckable(True)
         self.dashboard_btn.setChecked(True)
@@ -130,7 +131,7 @@ class MainWindow(QMainWindow):
         # Printers button
         self.printers_btn = QPushButton("Imprimantes")
         self.printers_btn.setIcon(QIcon("src/resources/icons/printer.png"))
-        self.printers_btn.setIconSize(QSize(18, 18))
+        self.printers_btn.setIconSize(QSize(36, 36))
         self.printers_btn.setCursor(Qt.PointingHandCursor)
         self.printers_btn.setCheckable(True)
         self.printers_btn.setStyleSheet("""
@@ -156,7 +157,7 @@ class MainWindow(QMainWindow):
         # Customers button
         self.customers_btn = QPushButton("Clients")
         self.customers_btn.setIcon(QIcon("src/resources/icons/customer.png"))
-        self.customers_btn.setIconSize(QSize(18, 18))
+        self.customers_btn.setIconSize(QSize(36, 36))
         self.customers_btn.setCursor(Qt.PointingHandCursor)
         self.customers_btn.setCheckable(True)
         self.customers_btn.setStyleSheet("""
@@ -182,7 +183,7 @@ class MainWindow(QMainWindow):
         # Orders button
         self.orders_btn = QPushButton("Commandes")
         self.orders_btn.setIcon(QIcon("src/resources/icons/order.png"))
-        self.orders_btn.setIconSize(QSize(18, 18))
+        self.orders_btn.setIconSize(QSize(36, 36))
         self.orders_btn.setCursor(Qt.PointingHandCursor)
         self.orders_btn.setCheckable(True)
         self.orders_btn.setStyleSheet("""
@@ -207,8 +208,8 @@ class MainWindow(QMainWindow):
         
         # Products button
         self.products_btn = QPushButton("Produits")
-        self.products_btn.setIcon(QIcon("src/resources/icons/order.png"))
-        self.products_btn.setIconSize(QSize(18, 18))
+        self.products_btn.setIcon(QIcon("src/resources/icons/products.png"))
+        self.products_btn.setIconSize(QSize(36,36))
         self.products_btn.setCursor(Qt.PointingHandCursor)
         self.products_btn.setCheckable(True)
         self.products_btn.setStyleSheet("""
@@ -231,10 +232,36 @@ class MainWindow(QMainWindow):
         """)
         self.products_btn.clicked.connect(lambda: self.switch_view(4))
         
+        # Suppliers button
+        self.suppliers_btn = QPushButton("Fournisseurs")
+        self.suppliers_btn.setIcon(QIcon("src/resources/icons/sppliers.png"))  # Utilisation de l'icône client pour le moment
+        self.suppliers_btn.setIconSize(QSize(36, 36))
+        self.suppliers_btn.setCursor(Qt.PointingHandCursor)
+        self.suppliers_btn.setCheckable(True)
+        self.suppliers_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background-color: #1E293B;
+                color: #F8FAFC;
+            }
+            QPushButton:checked {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+            }
+        """)
+        self.suppliers_btn.clicked.connect(lambda: self.switch_view(5))
+        
         # Settings button
         self.settings_btn = QPushButton("Paramètres")
         self.settings_btn.setIcon(QIcon("src/resources/icons/settings.png"))
-        self.settings_btn.setIconSize(QSize(18, 18))
+        self.settings_btn.setIconSize(QSize(36, 36))
         self.settings_btn.setCursor(Qt.PointingHandCursor)
         self.settings_btn.setCheckable(True)
         self.settings_btn.setStyleSheet("""
@@ -255,13 +282,14 @@ class MainWindow(QMainWindow):
                 color: #F8FAFC;
             }
         """)
-        self.settings_btn.clicked.connect(lambda: self.switch_view(5))
+        self.settings_btn.clicked.connect(lambda: self.switch_view(6))
         
         nav_layout.addWidget(self.dashboard_btn)
         nav_layout.addWidget(self.printers_btn)
         nav_layout.addWidget(self.customers_btn)
         nav_layout.addWidget(self.orders_btn)
         nav_layout.addWidget(self.products_btn)
+        nav_layout.addWidget(self.suppliers_btn)
         nav_layout.addStretch()
         
         sidebar_layout.addWidget(nav_frame)
@@ -283,14 +311,14 @@ class MainWindow(QMainWindow):
         user_layout.setContentsMargins(15, 0, 15, 0)
         
         user_icon = QLabel()
-        user_icon.setPixmap(QIcon("src/resources/icons/user.png").pixmap(QSize(24, 24)))
+        user_icon.setPixmap(QIcon("src/resources/icons/user.png").pixmap(QSize(36, 36)))
         
         user_label = QLabel(self.user.full_name)
         user_label.setStyleSheet("color: #F8FAFC;")
         
         logout_btn = QPushButton()
         logout_btn.setIcon(QIcon("src/resources/icons/logout.png"))
-        logout_btn.setIconSize(QSize(24, 24))
+        logout_btn.setIconSize(QSize(36, 36))
         logout_btn.setFixedSize(40, 40)
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setStyleSheet("""
@@ -336,6 +364,7 @@ class MainWindow(QMainWindow):
         self.customers_view = CustomersView(self.db)
         self.orders_view = OrdersView(self.db)
         self.products_view = ProductsView(self.db)
+        self.suppliers_view = SuppliersView(self.db)
         self.settings_view = SettingsView(self.db, self.user)
         
         # Connect settings view theme changed signal
@@ -347,6 +376,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.customers_view)
         self.stacked_widget.addWidget(self.orders_view)
         self.stacked_widget.addWidget(self.products_view)
+        self.stacked_widget.addWidget(self.suppliers_view)
         self.stacked_widget.addWidget(self.settings_view)
         
         content_layout.addWidget(self.stacked_widget)
@@ -368,7 +398,8 @@ class MainWindow(QMainWindow):
         self.customers_btn.setChecked(index == 2)
         self.orders_btn.setChecked(index == 3)
         self.products_btn.setChecked(index == 4)
-        self.settings_btn.setChecked(index == 5)
+        self.suppliers_btn.setChecked(index == 5)
+        self.settings_btn.setChecked(index == 6)
         
         # Switch view
         self.stacked_widget.setCurrentIndex(index)
