@@ -391,6 +391,7 @@ class MainWindow(QMainWindow):
         # Connect dashboard view signals to open views with specific status filters
         self.dashboard_view.open_orders_with_status.connect(self.open_orders_with_status)
         self.dashboard_view.open_printers_with_status.connect(self.open_printers_with_status)
+        self.dashboard_view.open_customers_with_message_status.connect(self.open_customers_with_message_status)
         self.printers_view = PrintersView(self.db)
         self.customers_view = CustomersView(self.db)
         self.orders_view = OrdersView(self.db)
@@ -434,6 +435,15 @@ class MainWindow(QMainWindow):
         self.suppliers_btn.setChecked(index == 5)
         self.financial_btn.setChecked(index == 6)
         self.settings_btn.setChecked(index == 7)
+        
+        # If switching to customers view, ensure we're showing all messages
+        if index == 2 and self.customers_btn.isChecked():
+            # Create a new customers view without message filter
+            self.customers_view = CustomersView(self.db)
+            
+            # Replace the existing customers view in the stacked widget
+            self.stacked_widget.removeWidget(self.stacked_widget.widget(2))
+            self.stacked_widget.insertWidget(2, self.customers_view)
         
         # Switch view
         self.stacked_widget.setCurrentIndex(index)
@@ -484,6 +494,23 @@ class MainWindow(QMainWindow):
         """
         # Switch to printers view
         self.switch_view(1)
+    
+    def open_customers_with_message_status(self, status):
+        """
+        Open the customers view with a specific message status filter.
+        
+        Args:
+            status: The message status to filter by.
+        """
+        # Create a new customers view with the message status filter
+        self.customers_view = CustomersView(self.db, message_status_filter=status)
+        
+        # Replace the existing customers view in the stacked widget
+        self.stacked_widget.removeWidget(self.stacked_widget.widget(2))
+        self.stacked_widget.insertWidget(2, self.customers_view)
+        
+        # Switch to customers view
+        self.switch_view(2)
     
     def on_theme_changed(self, is_dark_mode):
         """

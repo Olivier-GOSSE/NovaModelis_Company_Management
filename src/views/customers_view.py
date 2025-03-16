@@ -348,10 +348,11 @@ class CustomersView(QWidget):
     """
     Customers view for the application.
     """
-    def __init__(self, db):
+    def __init__(self, db, message_status_filter=None):
         super().__init__()
         
         self.db = db
+        self.message_status_filter = message_status_filter
         
         self.setup_ui()
         self.refresh_data()
@@ -656,7 +657,13 @@ class CustomersView(QWidget):
                 self.customers_table.setCellWidget(i, 6, actions_widget)
             
             # Get recent messages
-            recent_messages = self.db.query(CustomerEmail).order_by(CustomerEmail.received_at.desc()).limit(10).all()
+            messages_query = self.db.query(CustomerEmail).order_by(CustomerEmail.received_at.desc())
+            
+            # Apply message status filter if provided
+            if self.message_status_filter:
+                messages_query = messages_query.filter(CustomerEmail.status == self.message_status_filter)
+            
+            recent_messages = messages_query.limit(10).all()
             
             # Populate messages table
             self.messages_table.setRowCount(len(recent_messages))
