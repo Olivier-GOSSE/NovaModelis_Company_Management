@@ -12,11 +12,11 @@ from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QDialog, QLineEdit, QFormLayout,
     QComboBox, QMessageBox, QSpinBox, QDoubleSpinBox, QTextEdit,
     QFileDialog, QTabWidget, QToolBar, QToolButton, QSlider, QCheckBox,
-    QInputDialog
+    QInputDialog, QToolTip
 )
-from PySide6.QtCore import Qt, Signal, Slot, QSize, QDate, QDateTime
-from PySide6.QtGui import QIcon, QFont, QColor, QPainter, QPixmap, QPen, QBrush
-from PySide6.QtCharts import QChart, QChartView, QLineSeries, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis, QPieSeries
+from PySide6.QtCore import Qt, Signal, Slot, QSize, QDate, QDateTime, QPoint
+from PySide6.QtGui import QIcon, QFont, QColor, QPainter, QPixmap, QPen, QBrush, QCursor
+from PySide6.QtCharts import QChart, QChartView, QLineSeries, QSplineSeries, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis, QPieSeries
 
 # Add the parent directory to sys.path to allow imports
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/../..'))
@@ -251,30 +251,81 @@ class FinancialMonitoringView(QWidget):
         tab_layout.setSpacing(15)
         
         # Create chart
-        chart = QChart()
-        chart.setTitle("Évolution du chiffre d'affaires et du bénéfice")
-        chart.setTitleFont(QFont("Arial", 12))
-        chart.setTitleBrush(QBrush(QColor("#F8FAFC")))
-        chart.setBackgroundBrush(QBrush(QColor("#1E293B")))
-        chart.setAnimationOptions(QChart.SeriesAnimations)
+        self.trends_chart = QChart()
+        self.trends_chart.setTitle("Évolution du chiffre d'affaires et du bénéfice")
+        self.trends_chart.setTitleFont(QFont("Arial", 12))
+        self.trends_chart.setTitleBrush(QBrush(QColor("#F8FAFC")))
+        self.trends_chart.setBackgroundBrush(QBrush(QColor("#1E293B")))
+        self.trends_chart.setAnimationOptions(QChart.SeriesAnimations)
         
-        # Create revenue series
-        self.revenue_series = QLineSeries()
-        self.revenue_series.setName("Chiffre d'affaires")
+        # Configure legend
+        legend = self.trends_chart.legend()
+        legend.setVisible(True)
+        legend.setAlignment(Qt.AlignBottom)
+        legend.setFont(QFont("Arial", 10))
+        # Set light text color for better visibility on dark background
+        legend.setLabelBrush(QBrush(QColor("#F8FAFC")))
+        # Optional: add a semi-transparent background to the legend
+        legend.setBackgroundVisible(True)
+        legend.setColor(QColor(30, 41, 59, 200))  # Semi-transparent dark blue
+        legend.setBrush(QBrush(QColor(30, 41, 59, 200)))
+        
+        # Enable tooltips
+        self.trends_chart.setToolTip("Passez la souris sur un point pour voir les détails")
+        
+        # Create revenue series for current year
+        self.revenue_series = QSplineSeries()
+        self.revenue_series.setName("Chiffre d'affaires (actuel)")
         pen = QPen(QColor("#3B82F6"))
         pen.setWidth(3)
         self.revenue_series.setPen(pen)
+        # Enable tooltips
+        self.revenue_series.setPointsVisible(True)
+        self.revenue_series.setPointLabelsVisible(False)
         
-        # Create profit series
-        self.profit_series = QLineSeries()
-        self.profit_series.setName("Bénéfice net")
+        # Create revenue series for previous year
+        self.revenue_prev_series = QSplineSeries()
+        self.revenue_prev_series.setName("Chiffre d'affaires (N-1)")
+        pen = QPen(QColor("#93C5FD"))  # Lighter blue
+        pen.setWidth(2)
+        pen.setStyle(Qt.DashLine)
+        self.revenue_prev_series.setPen(pen)
+        # Enable tooltips
+        self.revenue_prev_series.setPointsVisible(True)
+        self.revenue_prev_series.setPointLabelsVisible(False)
+        
+        # Create profit series for current year
+        self.profit_series = QSplineSeries()
+        self.profit_series.setName("Bénéfice net (actuel)")
         pen = QPen(QColor("#10B981"))
         pen.setWidth(3)
         self.profit_series.setPen(pen)
+        # Enable tooltips
+        self.profit_series.setPointsVisible(True)
+        self.profit_series.setPointLabelsVisible(False)
+        
+        # Create profit series for previous year
+        self.profit_prev_series = QSplineSeries()
+        self.profit_prev_series.setName("Bénéfice net (N-1)")
+        pen = QPen(QColor("#6EE7B7"))  # Lighter green
+        pen.setWidth(2)
+        pen.setStyle(Qt.DashLine)
+        self.profit_prev_series.setPen(pen)
+        # Enable tooltips
+        self.profit_prev_series.setPointsVisible(True)
+        self.profit_prev_series.setPointLabelsVisible(False)
+        
+        # Connect signals for tooltips
+        self.revenue_series.hovered.connect(self.show_point_tooltip)
+        self.revenue_prev_series.hovered.connect(self.show_point_tooltip)
+        self.profit_series.hovered.connect(self.show_point_tooltip)
+        self.profit_prev_series.hovered.connect(self.show_point_tooltip)
         
         # Add series to chart
-        chart.addSeries(self.revenue_series)
-        chart.addSeries(self.profit_series)
+        self.trends_chart.addSeries(self.revenue_series)
+        self.trends_chart.addSeries(self.revenue_prev_series)
+        self.trends_chart.addSeries(self.profit_series)
+        self.trends_chart.addSeries(self.profit_prev_series)
         
         # Create axes
         self.trends_axis_x = QBarCategoryAxis()
@@ -286,16 +337,20 @@ class FinancialMonitoringView(QWidget):
         self.trends_axis_x.setLabelsColor(QColor("#CBD5E1"))
         
         # Add axes to chart
-        chart.addAxis(self.trends_axis_x, Qt.AlignBottom)
-        chart.addAxis(self.trends_axis_y, Qt.AlignLeft)
+        self.trends_chart.addAxis(self.trends_axis_x, Qt.AlignBottom)
+        self.trends_chart.addAxis(self.trends_axis_y, Qt.AlignLeft)
         
         self.revenue_series.attachAxis(self.trends_axis_x)
         self.revenue_series.attachAxis(self.trends_axis_y)
+        self.revenue_prev_series.attachAxis(self.trends_axis_x)
+        self.revenue_prev_series.attachAxis(self.trends_axis_y)
         self.profit_series.attachAxis(self.trends_axis_x)
         self.profit_series.attachAxis(self.trends_axis_y)
+        self.profit_prev_series.attachAxis(self.trends_axis_x)
+        self.profit_prev_series.attachAxis(self.trends_axis_y)
         
         # Create chart view
-        chart_view = QChartView(chart)
+        chart_view = QChartView(self.trends_chart)
         chart_view.setRenderHint(QPainter.Antialiasing)
         
         tab_layout.addWidget(chart_view)
@@ -309,12 +364,24 @@ class FinancialMonitoringView(QWidget):
         tab_layout.setSpacing(15)
         
         # Create chart
-        chart = QChart()
-        chart.setTitle("Dépenses par catégorie")
-        chart.setTitleFont(QFont("Arial", 12))
-        chart.setTitleBrush(QBrush(QColor("#F8FAFC")))
-        chart.setBackgroundBrush(QBrush(QColor("#1E293B")))
-        chart.setAnimationOptions(QChart.SeriesAnimations)
+        self.expenses_chart = QChart()
+        self.expenses_chart.setTitle("Dépenses par catégorie")
+        self.expenses_chart.setTitleFont(QFont("Arial", 12))
+        self.expenses_chart.setTitleBrush(QBrush(QColor("#F8FAFC")))
+        self.expenses_chart.setBackgroundBrush(QBrush(QColor("#1E293B")))
+        self.expenses_chart.setAnimationOptions(QChart.SeriesAnimations)
+        
+        # Configure legend
+        legend = self.expenses_chart.legend()
+        legend.setVisible(True)
+        legend.setAlignment(Qt.AlignBottom)
+        legend.setFont(QFont("Arial", 10))
+        # Set light text color for better visibility on dark background
+        legend.setLabelBrush(QBrush(QColor("#F8FAFC")))
+        # Optional: add a semi-transparent background to the legend
+        legend.setBackgroundVisible(True)
+        legend.setColor(QColor(30, 41, 59, 200))  # Semi-transparent dark blue
+        legend.setBrush(QBrush(QColor(30, 41, 59, 200)))
         
         # Create bar series
         self.expenses_series = QBarSeries()
@@ -331,7 +398,7 @@ class FinancialMonitoringView(QWidget):
         self.expenses_series.append(self.variable_expenses_set)
         
         # Add series to chart
-        chart.addSeries(self.expenses_series)
+        self.expenses_chart.addSeries(self.expenses_series)
         
         # Create axes
         self.expenses_axis_x = QBarCategoryAxis()
@@ -343,14 +410,14 @@ class FinancialMonitoringView(QWidget):
         self.expenses_axis_x.setLabelsColor(QColor("#CBD5E1"))
         
         # Add axes to chart
-        chart.addAxis(self.expenses_axis_x, Qt.AlignBottom)
-        chart.addAxis(self.expenses_axis_y, Qt.AlignLeft)
+        self.expenses_chart.addAxis(self.expenses_axis_x, Qt.AlignBottom)
+        self.expenses_chart.addAxis(self.expenses_axis_y, Qt.AlignLeft)
         
         self.expenses_series.attachAxis(self.expenses_axis_x)
         self.expenses_series.attachAxis(self.expenses_axis_y)
         
         # Create chart view
-        chart_view = QChartView(chart)
+        chart_view = QChartView(self.expenses_chart)
         chart_view.setRenderHint(QPainter.Antialiasing)
         
         tab_layout.addWidget(chart_view)
@@ -364,12 +431,24 @@ class FinancialMonitoringView(QWidget):
         tab_layout.setSpacing(15)
         
         # Create chart
-        chart = QChart()
-        chart.setTitle("Répartition des revenus par secteur d'activité")
-        chart.setTitleFont(QFont("Arial", 12))
-        chart.setTitleBrush(QBrush(QColor("#F8FAFC")))
-        chart.setBackgroundBrush(QBrush(QColor("#1E293B")))
-        chart.setAnimationOptions(QChart.SeriesAnimations)
+        self.sectors_chart = QChart()
+        self.sectors_chart.setTitle("Répartition des revenus par secteur d'activité")
+        self.sectors_chart.setTitleFont(QFont("Arial", 12))
+        self.sectors_chart.setTitleBrush(QBrush(QColor("#F8FAFC")))
+        self.sectors_chart.setBackgroundBrush(QBrush(QColor("#1E293B")))
+        self.sectors_chart.setAnimationOptions(QChart.SeriesAnimations)
+        
+        # Configure legend
+        legend = self.sectors_chart.legend()
+        legend.setVisible(True)
+        legend.setAlignment(Qt.AlignBottom)
+        legend.setFont(QFont("Arial", 10))
+        # Set light text color for better visibility on dark background
+        legend.setLabelBrush(QBrush(QColor("#F8FAFC")))
+        # Optional: add a semi-transparent background to the legend
+        legend.setBackgroundVisible(True)
+        legend.setColor(QColor(30, 41, 59, 200))  # Semi-transparent dark blue
+        legend.setBrush(QBrush(QColor(30, 41, 59, 200)))
         
         # Create pie series
         self.sectors_series = QPieSeries()
@@ -377,10 +456,10 @@ class FinancialMonitoringView(QWidget):
         # We'll set the label color for each slice individually
         
         # Add series to chart
-        chart.addSeries(self.sectors_series)
+        self.sectors_chart.addSeries(self.sectors_series)
         
         # Create chart view
-        chart_view = QChartView(chart)
+        chart_view = QChartView(self.sectors_chart)
         chart_view.setRenderHint(QPainter.Antialiasing)
         
         tab_layout.addWidget(chart_view)
@@ -582,6 +661,45 @@ class FinancialMonitoringView(QWidget):
         
         tab_layout.addWidget(self.data_table)
     
+    def show_point_tooltip(self, point, state):
+        """
+        Show tooltip when hovering over a point in the chart.
+        
+        Args:
+            point: The point being hovered
+            state: True if the point is being hovered, False otherwise
+        """
+        if state:
+            # Get the series that triggered the hover
+            sender = self.sender()
+            
+            # Get the category (date) for this point
+            category = self.trends_axis_x.categories()[int(point.x())]
+            
+            # Format the value
+            value = int(point.y())
+            formatted_value = f"{value:,} €".replace(",", " ")
+            
+            # Determine if it's current or previous year
+            year_label = ""
+            if sender == self.revenue_series or sender == self.profit_series:
+                year_label = "Année actuelle"
+            else:
+                year_label = "Année précédente"
+            
+            # Determine if it's revenue or profit
+            type_label = ""
+            if sender == self.revenue_series or sender == self.revenue_prev_series:
+                type_label = "Chiffre d'affaires"
+            else:
+                type_label = "Bénéfice net"
+            
+            # Set tooltip text
+            tooltip = f"{category} - {year_label}\n{type_label}: {formatted_value}"
+            
+            # Show tooltip
+            QToolTip.showText(QCursor.pos(), tooltip)
+    
     def refresh_data(self):
         """
         Refresh the financial data.
@@ -612,7 +730,9 @@ class FinancialMonitoringView(QWidget):
         
         # Update trends chart
         self.revenue_series.clear()
+        self.revenue_prev_series.clear()
         self.profit_series.clear()
+        self.profit_prev_series.clear()
         
         # Generate data based on selected period
         period_index = self.period_combo.currentIndex()
@@ -633,6 +753,8 @@ class FinancialMonitoringView(QWidget):
         
         max_revenue = 0
         
+        # Generate data for current year
+        current_year_data = []
         for i in range(len(categories)):
             revenue_value = random.randint(10000, 100000)
             profit_value = random.randint(2000, 30000)
@@ -640,7 +762,26 @@ class FinancialMonitoringView(QWidget):
             self.revenue_series.append(i, revenue_value)
             self.profit_series.append(i, profit_value)
             
+            current_year_data.append((revenue_value, profit_value))
             max_revenue = max(max_revenue, revenue_value)
+        
+        # Generate data for previous year (slightly lower values on average)
+        for i in range(len(categories)):
+            # Use current year data as a reference, but with some variation
+            # Previous year values are typically 80-95% of current year
+            current_revenue, current_profit = current_year_data[i]
+            
+            # Apply a reduction factor with some randomness
+            revenue_factor = random.uniform(0.80, 0.95)
+            profit_factor = random.uniform(0.75, 0.90)
+            
+            prev_revenue_value = int(current_revenue * revenue_factor)
+            prev_profit_value = int(current_profit * profit_factor)
+            
+            self.revenue_prev_series.append(i, prev_revenue_value)
+            self.profit_prev_series.append(i, prev_profit_value)
+            
+            max_revenue = max(max_revenue, prev_revenue_value)
         
         self.trends_axis_y.setRange(0, max_revenue * 1.1)
         
