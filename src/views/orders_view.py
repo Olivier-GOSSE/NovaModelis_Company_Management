@@ -87,130 +87,258 @@ class OrderDetailsDialog(QDialog):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
         
+        # Custom title bar
+        title_bar_layout = QHBoxLayout()
+        title_bar_layout.setContentsMargins(0, 0, 0, 10)
+        
+        # Title
+        title_label = QLabel(f"{'Modifier' if self.is_edit_mode else 'Ajouter'} Commande")
+        title_label.setStyleSheet("color: #F8FAFC; font-size: 18px; font-weight: bold;")
+        
+        # Close button
+        close_btn = QPushButton("×")  # Unicode multiplication sign as close icon
+        close_btn.setFixedSize(30, 30)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                font-size: 20px;
+                font-weight: bold;
+                border: none;
+                border-radius: 15px;
+            }
+            QPushButton:hover {
+                background-color: #EF4444;
+                color: #F8FAFC;
+            }
+        """)
+        close_btn.clicked.connect(self.reject)
+        
+        title_bar_layout.addWidget(title_label)
+        title_bar_layout.addStretch()
+        title_bar_layout.addWidget(close_btn)
+        
+        main_layout.addLayout(title_bar_layout)
+        
+        # Content frame
+        content_frame = QFrame()
+        content_frame.setObjectName("contentFrame")
+        content_frame.setStyleSheet("""
+            #contentFrame {
+                background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                border-radius: 12px;
+            }
+        """)
+        
+        content_layout = QVBoxLayout(content_frame)
+        content_layout.setContentsMargins(15, 15, 15, 15)
+        content_layout.setSpacing(15)
+        
         # Form layout
         form_layout = QFormLayout()
         form_layout.setSpacing(10)
         
+        # Style for input fields
+        input_style = """
+            QLineEdit, QDateEdit, QComboBox, QDoubleSpinBox {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 8px;
+                padding: 8px;
+                min-height: 20px;
+            }
+            QLineEdit:focus, QDateEdit:focus, QComboBox:focus, QDoubleSpinBox:focus {
+                border: 1px solid #3B82F6;
+            }
+            QTextEdit {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 8px;
+                padding: 8px;
+            }
+            QTextEdit:focus {
+                border: 1px solid #3B82F6;
+            }
+            QCheckBox {
+                color: #F8FAFC;
+            }
+        """
+        
         # Order number
         self.order_number_input = QLineEdit()
+        self.order_number_input.setStyleSheet(input_style)
         if not self.is_edit_mode:
             # Generate a new order number
             today = datetime.date.today()
             self.order_number_input.setText(f"ORD-{today.year}-{today.month:02d}{today.day:02d}-")
         
-        form_layout.addRow("Order Number:", self.order_number_input)
+        form_layout.addRow("Numéro de commande:", self.order_number_input)
         
         # Customer
         self.customer_combo = QComboBox()
+        self.customer_combo.setStyleSheet(input_style)
         self.load_customers()
-        form_layout.addRow("Customer:", self.customer_combo)
+        form_layout.addRow("Client:", self.customer_combo)
         
         # Sales channel
         self.sales_channel_combo = QComboBox()
+        self.sales_channel_combo.setStyleSheet(input_style)
         self.load_sales_channels()
-        form_layout.addRow("Sales Channel:", self.sales_channel_combo)
+        form_layout.addRow("Canal de vente:", self.sales_channel_combo)
         
         # Order date
         self.order_date_input = QDateEdit()
+        self.order_date_input.setStyleSheet(input_style)
         self.order_date_input.setCalendarPopup(True)
         self.order_date_input.setDate(QDate.currentDate())
-        form_layout.addRow("Order Date:", self.order_date_input)
+        form_layout.addRow("Date de commande:", self.order_date_input)
         
         # Status
         self.status_combo = QComboBox()
+        self.status_combo.setStyleSheet(input_style)
         for status in OrderStatus:
             self.status_combo.addItem(status.value.capitalize(), status)
-        form_layout.addRow("Status:", self.status_combo)
+        form_layout.addRow("Statut:", self.status_combo)
         
         # Payment status
         self.payment_status_combo = QComboBox()
+        self.payment_status_combo.setStyleSheet(input_style)
         for status in PaymentStatus:
             self.payment_status_combo.addItem(status.value.capitalize(), status)
-        form_layout.addRow("Payment Status:", self.payment_status_combo)
+        form_layout.addRow("Statut de paiement:", self.payment_status_combo)
         
         # Total amount
         self.total_amount_input = QDoubleSpinBox()
+        self.total_amount_input.setStyleSheet(input_style)
         self.total_amount_input.setRange(0, 10000)
         self.total_amount_input.setPrefix("$")
         self.total_amount_input.setDecimals(2)
-        form_layout.addRow("Total Amount:", self.total_amount_input)
+        form_layout.addRow("Montant total:", self.total_amount_input)
         
         # Tax amount
         self.tax_amount_input = QDoubleSpinBox()
+        self.tax_amount_input.setStyleSheet(input_style)
         self.tax_amount_input.setRange(0, 1000)
         self.tax_amount_input.setPrefix("$")
         self.tax_amount_input.setDecimals(2)
-        form_layout.addRow("Tax Amount:", self.tax_amount_input)
+        form_layout.addRow("Montant des taxes:", self.tax_amount_input)
         
         # Shipping amount
         self.shipping_amount_input = QDoubleSpinBox()
+        self.shipping_amount_input.setStyleSheet(input_style)
         self.shipping_amount_input.setRange(0, 1000)
         self.shipping_amount_input.setPrefix("$")
         self.shipping_amount_input.setDecimals(2)
-        form_layout.addRow("Shipping Amount:", self.shipping_amount_input)
+        form_layout.addRow("Frais d'expédition:", self.shipping_amount_input)
         
         # Discount amount
         self.discount_amount_input = QDoubleSpinBox()
+        self.discount_amount_input.setStyleSheet(input_style)
         self.discount_amount_input.setRange(0, 1000)
         self.discount_amount_input.setPrefix("$")
         self.discount_amount_input.setDecimals(2)
-        form_layout.addRow("Discount Amount:", self.discount_amount_input)
+        form_layout.addRow("Montant de la remise:", self.discount_amount_input)
         
         # Shipping address
         self.shipping_address_line1_input = QLineEdit()
-        form_layout.addRow("Shipping Address Line 1:", self.shipping_address_line1_input)
+        self.shipping_address_line1_input.setStyleSheet(input_style)
+        form_layout.addRow("Adresse d'expédition ligne 1:", self.shipping_address_line1_input)
         
         self.shipping_address_line2_input = QLineEdit()
-        form_layout.addRow("Shipping Address Line 2:", self.shipping_address_line2_input)
+        self.shipping_address_line2_input.setStyleSheet(input_style)
+        form_layout.addRow("Adresse d'expédition ligne 2:", self.shipping_address_line2_input)
         
         self.shipping_city_input = QLineEdit()
-        form_layout.addRow("Shipping City:", self.shipping_city_input)
+        self.shipping_city_input.setStyleSheet(input_style)
+        form_layout.addRow("Ville d'expédition:", self.shipping_city_input)
         
         self.shipping_state_province_input = QLineEdit()
-        form_layout.addRow("Shipping State/Province:", self.shipping_state_province_input)
+        self.shipping_state_province_input.setStyleSheet(input_style)
+        form_layout.addRow("État/Province d'expédition:", self.shipping_state_province_input)
         
         self.shipping_postal_code_input = QLineEdit()
-        form_layout.addRow("Shipping Postal Code:", self.shipping_postal_code_input)
+        self.shipping_postal_code_input.setStyleSheet(input_style)
+        form_layout.addRow("Code postal d'expédition:", self.shipping_postal_code_input)
         
         self.shipping_country_input = QLineEdit()
-        form_layout.addRow("Shipping Country:", self.shipping_country_input)
+        self.shipping_country_input.setStyleSheet(input_style)
+        form_layout.addRow("Pays d'expédition:", self.shipping_country_input)
         
         # Tracking information
         self.tracking_number_input = QLineEdit()
-        form_layout.addRow("Tracking Number:", self.tracking_number_input)
+        self.tracking_number_input.setStyleSheet(input_style)
+        form_layout.addRow("Numéro de suivi:", self.tracking_number_input)
         
         self.shipping_carrier_input = QLineEdit()
-        form_layout.addRow("Shipping Carrier:", self.shipping_carrier_input)
+        self.shipping_carrier_input.setStyleSheet(input_style)
+        form_layout.addRow("Transporteur:", self.shipping_carrier_input)
         
         # Flags
-        flags_layout = QHBoxLayout()
+        flags_frame = QFrame()
+        flags_layout = QVBoxLayout(flags_frame)
+        flags_layout.setContentsMargins(0, 0, 0, 0)
+        flags_layout.setSpacing(5)
         
-        self.invoice_generated_check = QCheckBox("Invoice Generated")
+        self.invoice_generated_check = QCheckBox("Facture générée")
+        self.invoice_generated_check.setStyleSheet("color: #F8FAFC;")
         flags_layout.addWidget(self.invoice_generated_check)
         
-        self.shipping_label_generated_check = QCheckBox("Shipping Label Generated")
+        self.shipping_label_generated_check = QCheckBox("Étiquette d'expédition générée")
+        self.shipping_label_generated_check.setStyleSheet("color: #F8FAFC;")
         flags_layout.addWidget(self.shipping_label_generated_check)
         
-        form_layout.addRow("Flags:", flags_layout)
+        form_layout.addRow("Options:", flags_frame)
         
         # Notes
         self.notes_input = QTextEdit()
-        self.notes_input.setMaximumHeight(100)
+        self.notes_input.setStyleSheet(input_style)
+        self.notes_input.setMinimumHeight(150)  # Augmentation de la hauteur minimale
         form_layout.addRow("Notes:", self.notes_input)
         
-        main_layout.addLayout(form_layout)
+        content_layout.addLayout(form_layout)
+        main_layout.addWidget(content_frame)
         
         # Buttons
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(10)
         
-        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn = QPushButton("Annuler")
+        self.cancel_btn.setCursor(Qt.PointingHandCursor)
+        self.cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #475569;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 12px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #64748B;
+            }
+        """)
         self.cancel_btn.clicked.connect(self.reject)
         
-        self.save_btn = QPushButton("Save")
+        self.save_btn = QPushButton("Enregistrer")
+        self.save_btn.setCursor(Qt.PointingHandCursor)
+        self.save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 12px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+        """)
         self.save_btn.setDefault(True)
         self.save_btn.clicked.connect(self.save_order)
         
+        buttons_layout.addStretch()
         buttons_layout.addWidget(self.cancel_btn)
         buttons_layout.addWidget(self.save_btn)
         
@@ -334,12 +462,12 @@ class OrderDetailsDialog(QDialog):
         order_number = self.order_number_input.text().strip()
         
         if not order_number:
-            QMessageBox.warning(self, "Validation Error", "Order number is required.")
+            QMessageBox.warning(self, "Erreur de validation", "Le numéro de commande est requis.")
             return
         
         customer_id = self.customer_combo.currentData()
         if customer_id is None:
-            QMessageBox.warning(self, "Validation Error", "Customer is required.")
+            QMessageBox.warning(self, "Erreur de validation", "Le client est requis.")
             return
         
         try:
@@ -348,14 +476,14 @@ class OrderDetailsDialog(QDialog):
             # Check if order number is already in use
             existing_order = db.query(Order).filter(Order.order_number == order_number).first()
             if existing_order and (not self.is_edit_mode or existing_order.id != self.order.id):
-                QMessageBox.warning(self, "Validation Error", "Order number is already in use.")
+                QMessageBox.warning(self, "Erreur de validation", "Ce numéro de commande est déjà utilisé.")
                 return
             
             if self.is_edit_mode:
                 # Update existing order
                 order = db.query(Order).filter(Order.id == self.order.id).first()
                 if not order:
-                    QMessageBox.warning(self, "Error", "Order not found.")
+                    QMessageBox.warning(self, "Erreur", "Commande non trouvée.")
                     return
             else:
                 # Create new order
@@ -410,7 +538,7 @@ class OrderDetailsDialog(QDialog):
             self.accept()
         except Exception as e:
             logging.error(f"Error saving order: {str(e)}")
-            QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
         finally:
             db.close()
 
@@ -439,7 +567,7 @@ class OrdersView(QWidget):
         # Header
         header_layout = QHBoxLayout()
         
-        header_title = QLabel("Orders")
+        header_title = QLabel("Commandes")
         header_title.setStyleSheet("color: #F8FAFC; font-size: 20px; font-weight: bold;")
         
         # Search box
@@ -447,7 +575,7 @@ class OrdersView(QWidget):
         search_layout.setSpacing(0)
         
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search orders...")
+        self.search_input.setPlaceholderText("Rechercher des commandes...")
         self.search_input.setStyleSheet("""
             QLineEdit {
                 background-color: #1E293B;
@@ -463,7 +591,7 @@ class OrdersView(QWidget):
         
         # Filter by status
         self.status_filter = QComboBox()
-        self.status_filter.addItem("All Statuses", None)
+        self.status_filter.addItem("Tous les statuts", None)
         for status in OrderStatus:
             self.status_filter.addItem(status.value.capitalize(), status)
         
@@ -494,7 +622,7 @@ class OrdersView(QWidget):
         self.status_filter.currentIndexChanged.connect(self.refresh_data)
         
         # Add order button
-        self.add_btn = QPushButton("Add Order")
+        self.add_btn = QPushButton("Ajouter une commande")
         self.add_btn.setIcon(QIcon("src/resources/icons/add.png"))
         self.add_btn.setCursor(Qt.PointingHandCursor)
         self.add_btn.setStyleSheet("""
@@ -525,7 +653,7 @@ class OrdersView(QWidget):
         self.orders_table = QTableWidget()
         self.orders_table.setColumnCount(8)
         self.orders_table.setHorizontalHeaderLabels([
-            "Order #", "Customer", "Date", "Status", "Payment", "Total", "Items", "Actions"
+            "N° Commande", "Client", "Date", "Statut", "Paiement", "Total", "Articles", "Actions"
         ])
         self.orders_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.orders_table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
@@ -573,7 +701,7 @@ class OrdersView(QWidget):
         details_layout.setSpacing(10)
         
         details_header = QHBoxLayout()
-        details_title = QLabel("Order Details")
+        details_title = QLabel("Détails de la commande")
         details_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
         details_header.addWidget(details_title)
@@ -582,7 +710,7 @@ class OrdersView(QWidget):
         details_layout.addLayout(details_header)
         
         # Order details content
-        details_content = QLabel("Select an order to view details")
+        details_content = QLabel("Sélectionnez une commande pour voir les détails")
         details_content.setAlignment(Qt.AlignCenter)
         details_content.setStyleSheet("color: #94A3B8; font-size: 14px;")
         
@@ -665,7 +793,8 @@ class OrdersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                view_btn.setToolTip("View Order")
+                view_btn.setToolTip("Voir la commande")
+                view_btn.clicked.connect(lambda checked, o=order: self.view_order(o))
                 
                 # Edit button
                 edit_btn = QPushButton()
@@ -682,7 +811,7 @@ class OrdersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                edit_btn.setToolTip("Edit Order")
+                edit_btn.setToolTip("Modifier la commande")
                 edit_btn.clicked.connect(lambda checked, o=order: self.edit_order(o))
                 
                 # Print invoice button
@@ -700,7 +829,8 @@ class OrdersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                invoice_btn.setToolTip("Print Invoice")
+                invoice_btn.setToolTip("Imprimer la facture")
+                invoice_btn.clicked.connect(lambda checked, o=order: self.print_invoice(o))
                 
                 # Print shipping label button
                 shipping_btn = QPushButton()
@@ -717,7 +847,8 @@ class OrdersView(QWidget):
                         background-color: #475569;
                     }
                 """)
-                shipping_btn.setToolTip("Print Shipping Label")
+                shipping_btn.setToolTip("Imprimer l'étiquette d'expédition")
+                shipping_btn.clicked.connect(lambda checked, o=order: self.print_shipping_label(o))
                 
                 actions_layout.addWidget(view_btn)
                 actions_layout.addWidget(edit_btn)
@@ -758,6 +889,31 @@ class OrdersView(QWidget):
             # Refresh the view to show the new order
             self.refresh_data()
     
+    def view_order(self, order):
+        """
+        Open the view order dialog in read-only mode.
+        """
+        # Create a read-only version of the order dialog
+        dialog = OrderDetailsDialog(order, self)
+        
+        # Disable all input fields
+        for child in dialog.findChildren(QLineEdit) + dialog.findChildren(QComboBox) + \
+                    dialog.findChildren(QDateEdit) + dialog.findChildren(QDoubleSpinBox) + \
+                    dialog.findChildren(QTextEdit) + dialog.findChildren(QCheckBox):
+            if isinstance(child, QLineEdit) or isinstance(child, QTextEdit):
+                child.setReadOnly(True)
+            else:
+                child.setEnabled(False)
+        
+        # Change the title
+        dialog.findChild(QLabel).setText("Détails de la Commande")
+        
+        # Hide the save button, change cancel button to close
+        dialog.save_btn.setVisible(False)
+        dialog.cancel_btn.setText("Fermer")
+        
+        dialog.exec()
+    
     def edit_order(self, order):
         """
         Open the edit order dialog.
@@ -766,3 +922,71 @@ class OrdersView(QWidget):
         if dialog.exec():
             # Refresh the view to show the updated order
             self.refresh_data()
+    
+    def print_invoice(self, order):
+        """
+        Print the invoice for the order.
+        """
+        try:
+            # Update the invoice_generated flag
+            db = SessionLocal()
+            order_db = db.query(Order).filter(Order.id == order.id).first()
+            if order_db:
+                order_db.invoice_generated = True
+                db.commit()
+                
+                # Show a success message
+                QMessageBox.information(
+                    self, 
+                    "Impression de facture", 
+                    f"La facture pour la commande {order.order_number} a été envoyée à l'imprimante."
+                )
+                
+                # Refresh the view to show the updated order
+                self.refresh_data()
+            else:
+                QMessageBox.warning(self, "Erreur", "Commande non trouvée.")
+        except Exception as e:
+            logging.error(f"Error printing invoice: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+        finally:
+            db.close()
+    
+    def print_shipping_label(self, order):
+        """
+        Print the shipping label for the order.
+        """
+        try:
+            # Check if shipping address is complete
+            if not order.shipping_address_line1 or not order.shipping_city or \
+               not order.shipping_postal_code or not order.shipping_country:
+                QMessageBox.warning(
+                    self, 
+                    "Adresse incomplète", 
+                    "L'adresse d'expédition est incomplète. Veuillez compléter l'adresse avant d'imprimer l'étiquette."
+                )
+                return
+            
+            # Update the shipping_label_generated flag
+            db = SessionLocal()
+            order_db = db.query(Order).filter(Order.id == order.id).first()
+            if order_db:
+                order_db.shipping_label_generated = True
+                db.commit()
+                
+                # Show a success message
+                QMessageBox.information(
+                    self, 
+                    "Impression d'étiquette", 
+                    f"L'étiquette d'expédition pour la commande {order.order_number} a été envoyée à l'imprimante."
+                )
+                
+                # Refresh the view to show the updated order
+                self.refresh_data()
+            else:
+                QMessageBox.warning(self, "Erreur", "Commande non trouvée.")
+        except Exception as e:
+            logging.error(f"Error printing shipping label: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Une erreur est survenue : {str(e)}")
+        finally:
+            db.close()

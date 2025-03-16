@@ -139,8 +139,8 @@ class LoginWindow(QMainWindow):
                 border: 1px solid #475569;
                 border-radius: 12px;
                 padding: 10px;
-                min-height: 55px;
-                height: 55px;
+                min-height: 45px;
+                height: 45px;
                 font-size: 14px;
             }
             QLineEdit:focus {
@@ -163,8 +163,8 @@ class LoginWindow(QMainWindow):
                 border: 1px solid #475569;
                 border-radius: 12px;
                 padding: 10px;
-                min-height: 55px;
-                height: 55px;
+                min-height: 45px;
+                height: 45px;
                 font-size: 14px;
             }
             QLineEdit:focus {
