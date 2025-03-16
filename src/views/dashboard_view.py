@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QFrame, QGridLayout, QScrollArea, QTableWidget, QTableWidgetItem,
-    QHeaderView, QSizePolicy, QButtonGroup
+    QHeaderView, QSizePolicy, QButtonGroup, QProgressBar
 )
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QIcon, QFont, QColor, QPainter
 from sqlalchemy import func
 
@@ -75,7 +75,7 @@ class StatCard(QFrame):
         title_label.setStyleSheet("color: #94A3B8; font-size: 14px;")
         
         value_label = QLabel(str(value))
-        value_label.setStyleSheet("color: #F8FAFC; font-size: 24px; font-weight: bold;")
+        value_label.setStyleSheet("color: #F8FAFC; font-size: 36px; font-weight: bold;")
         
         text_layout.addWidget(title_label)
         text_layout.addWidget(value_label)
@@ -90,13 +90,10 @@ class DashboardView(QWidget):
     """
     Dashboard view for the application.
     """
-    def __init__(self, db):
-        super().__init__()
-        
-        self.db = db
-        
-        self.setup_ui()
-        self.refresh_data()
+    # Signals to open views with specific status filters
+    open_orders_with_status = Signal(object)
+    open_printers_with_status = Signal(object)
+    open_customers_with_message_status = Signal(object)
     
     def setup_ui(self):
         """
@@ -306,7 +303,7 @@ class DashboardView(QWidget):
         
         # Ecommerce header
         ecommerce_header = QHBoxLayout()
-        ecommerce_title = QLabel("Ventes par site e-commerce (12 derniers mois)")
+        ecommerce_title = QLabel("Ventes par site e-commerce (année en cours)")
         ecommerce_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
         ecommerce_header.addWidget(ecommerce_title)
@@ -325,8 +322,8 @@ class DashboardView(QWidget):
         stats_layout.setSpacing(15)
         
         # Create stat cards (will be populated in refresh_data)
-        self.orders_card = StatCard("Commandes totales", "0", "src/resources/icons/order.png")
-        self.revenue_card = StatCard("Revenu total", "0 €", "src/resources/icons/revenue.png", "#10B981")
+        self.orders_card = StatCard("Commandes du mois", "0", "src/resources/icons/order.png")
+        self.revenue_card = StatCard("Revenu du mois", "0 €", "src/resources/icons/revenue.png", "#10B981")
         self.customers_card = StatCard("Clients totaux", "0", "src/resources/icons/customer.png", "#F59E0B")
         self.printers_card = StatCard("Imprimantes actives", "0", "src/resources/icons/printer.png", "#EF4444")
         
@@ -371,6 +368,7 @@ class DashboardView(QWidget):
                 color: #2563EB;
             }
         """)
+        view_all_orders.clicked.connect(self.view_all_new_orders)
         
         orders_header.addWidget(orders_title)
         orders_header.addStretch()
@@ -443,6 +441,7 @@ class DashboardView(QWidget):
                 color: #2563EB;
             }
         """)
+        view_all_jobs.clicked.connect(self.view_all_active_print_jobs)
         
         jobs_header.addWidget(jobs_title)
         jobs_header.addStretch()
@@ -515,6 +514,7 @@ class DashboardView(QWidget):
                 color: #2563EB;
             }
         """)
+        view_all_messages.clicked.connect(self.view_all_unread_messages)
         
         messages_header.addWidget(messages_title)
         messages_header.addStretch()
@@ -569,6 +569,69 @@ class DashboardView(QWidget):
         
         # Add scroll area to main layout
         main_layout.addWidget(scroll_area)
+    
+    def __init__(self, db):
+        super().__init__()
+        
+        self.db = db
+        
+        # Store current annotations for tooltips
+        self.current_tooltip = None
+        self.current_ecommerce_tooltip = None
+        
+        self.setup_ui()
+        self.refresh_data()
+    
+    def on_hover(self, event):
+        """
+        Handle hover events on the graph to show tooltips.
+        
+        Args:
+            event: The mouse event
+        """
+        # Remove previous tooltip if it exists
+        if hasattr(self, 'current_tooltip') and self.current_tooltip:
+            self.current_tooltip.remove()
+            self.current_tooltip = None
+            self.graph_canvas.draw_idle()
+        
+        if event.inaxes:
+            # Get the x and y coordinates of the mouse
+            x, y = event.xdata, event.ydata
+            
+            # Get the current axes
+            ax = event.inaxes
+            
+            # Get the months list
+            months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+            
+            # Find the closest point
+            if x is not None and y is not None:
+                # Round to the nearest integer for x to get the month index
+                x_int = int(round(x))
+                
+                # Make sure x_int is within valid range
+                if 0 <= x_int < len(months):
+                    # Get the month name
+                    month = months[x_int]
+                    
+                    # Format the value
+                    value = f"{y:.2f} €"
+                    
+                    # Create tooltip text
+                    tooltip = f"{month}: {value}"
+                    
+                    # Show tooltip
+                    self.current_tooltip = ax.annotate(tooltip,
+                                                     xy=(x, y),
+                                                     xytext=(10, 10),
+                                                     textcoords='offset points',
+                                                     bbox=dict(boxstyle='round,pad=0.5', fc='#1E293B', ec='#334155', alpha=0.8),
+                                                     color='#F8FAFC',
+                                                     fontsize=9)
+                    
+                    # Redraw the canvas
+                    self.graph_canvas.draw_idle()
     
     def update_graph(self, button):
         """
@@ -629,13 +692,48 @@ class DashboardView(QWidget):
         current_month = now.month
         current_year_plot_data = current_year_data[:current_month]
         
-        # Plot previous year data
-        self.graph_canvas.axes.plot(x, previous_year_data, marker='o', linestyle='-', color='#94A3B8', 
-                                   linewidth=2, markersize=6, label=f'{previous_year}')
+        # Plot previous year data with smooth curve
+        # Use a polynomial of degree 5 for smoothing
+        z = np.polyfit(x, previous_year_data, 5)
+        p = np.poly1d(z)
         
-        # Plot current year data
-        self.graph_canvas.axes.plot(x[:current_month], current_year_plot_data, marker='o', linestyle='-', 
-                                   color='#3B82F6', linewidth=2, markersize=6, label=f'{current_year}')
+        # Create smooth curve with more points
+        xnew = np.linspace(0, len(months)-1, 100)  # 100 points for smooth curve
+        smooth_prev = p(xnew)
+        
+        # Plot the smooth curve
+        self.graph_canvas.axes.plot(xnew, smooth_prev, linestyle='-', color='#94A3B8', 
+                                   linewidth=2, label=f'{previous_year}')
+        
+        # Add data points on the curve
+        for i, month in enumerate(months):
+            # Calculate the y-value on the curve for this x-point
+            point_y = p(i)
+            self.graph_canvas.axes.plot(i, point_y, marker='o', markersize=6, color='#94A3B8')
+            
+            # Add event handling for tooltips
+            self.graph_canvas.mpl_connect('motion_notify_event', self.on_hover)
+        
+        # Plot current year data with smooth curve
+        if current_month >= 3:  # Need at least 3 points for a reasonable polynomial
+            # Use a polynomial of appropriate degree based on number of points
+            degree = min(3, current_month-1)
+            z_current = np.polyfit(x[:current_month], current_year_plot_data, degree)
+            p_current = np.poly1d(z_current)
+            
+            # Create smooth curve with more points
+            xnew_current = np.linspace(0, current_month-1, 50)  # 50 points for smooth curve
+            smooth_current = p_current(xnew_current)
+            
+            # Plot the smooth curve
+            self.graph_canvas.axes.plot(xnew_current, smooth_current, linestyle='-', 
+                                      color='#3B82F6', linewidth=2, label=f'{current_year}')
+            
+            # Add data points on the curve
+            for i in range(current_month):
+                # Calculate the y-value on the curve for this x-point
+                point_y = p_current(i)
+                self.graph_canvas.axes.plot(i, point_y, marker='o', markersize=6, color='#3B82F6')
         
         # Set labels and title
         self.graph_canvas.axes.set_xlabel('Mois')
@@ -653,9 +751,60 @@ class DashboardView(QWidget):
         # Update the canvas
         self.graph_canvas.draw()
     
+    def on_ecommerce_hover(self, event):
+        """
+        Handle hover events on the e-commerce graph to show tooltips.
+        
+        Args:
+            event: The mouse event
+        """
+        # Remove previous tooltip if it exists
+        if hasattr(self, 'current_ecommerce_tooltip') and self.current_ecommerce_tooltip:
+            self.current_ecommerce_tooltip.remove()
+            self.current_ecommerce_tooltip = None
+            self.ecommerce_canvas.draw_idle()
+        
+        if event.inaxes:
+            # Get the x and y coordinates of the mouse
+            x, y = event.xdata, event.ydata
+            
+            # Get the current axes
+            ax = event.inaxes
+            
+            # Get the months list
+            months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+            
+            # Find the closest point
+            if x is not None and y is not None:
+                # Round to the nearest integer for x to get the month index
+                x_int = int(round(x))
+                
+                # Make sure x_int is within valid range
+                if 0 <= x_int < len(months):
+                    # Get the month name
+                    month = months[x_int]
+                    
+                    # Format the value
+                    value = f"{y:.2f} €"
+                    
+                    # Create tooltip text
+                    tooltip = f"{month}: {value}"
+                    
+                    # Show tooltip
+                    self.current_ecommerce_tooltip = ax.annotate(tooltip,
+                                                               xy=(x, y),
+                                                               xytext=(10, 10),
+                                                               textcoords='offset points',
+                                                               bbox=dict(boxstyle='round,pad=0.5', fc='#1E293B', ec='#334155', alpha=0.8),
+                                                               color='#F8FAFC',
+                                                               fontsize=9)
+                    
+                    # Redraw the canvas
+                    self.ecommerce_canvas.draw_idle()
+    
     def update_ecommerce_histogram(self):
         """
-        Update the e-commerce sales histogram.
+        Update the e-commerce sales chart with smooth curves.
         """
         # Clear the graph
         self.ecommerce_canvas.axes.clear()
@@ -674,30 +823,62 @@ class DashboardView(QWidget):
         
         # E-commerce platforms
         platforms = ['Shopify', 'Amazon', 'eBay', 'Cdiscount']
+        platform_colors = {
+            'Shopify': '#3B82F6',  # Blue
+            'Amazon': '#F59E0B',   # Orange
+            'eBay': '#10B981',     # Green
+            'Cdiscount': '#EF4444' # Red
+        }
         
-        # Months for x-axis (last 12 months)
+        # Months for x-axis (current year only)
         now = datetime.now()
-        months = []
-        for i in range(11, -1, -1):
-            month_date = now - timedelta(days=i*30)
-            months.append(month_date.strftime('%b %y'))
+        current_year = now.year
+        current_month = now.month
         
-        # Generate sample data for each platform (in a real app, this would come from the database)
-        # This would be replaced with actual data from the database in a real application
-        shopify_data = [random.uniform(2000, 8000) for _ in range(12)]
-        amazon_data = [random.uniform(3000, 10000) for _ in range(12)]
-        ebay_data = [random.uniform(1500, 6000) for _ in range(12)]
-        cdiscount_data = [random.uniform(1000, 5000) for _ in range(12)]
+        # Use all months of the current year
+        months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+        
+        # Generate sample data for each platform (for all months of the year)
+        data = {
+            'Shopify': [random.uniform(2000, 8000) for _ in range(12)],
+            'Amazon': [random.uniform(3000, 10000) for _ in range(12)],
+            'eBay': [random.uniform(1500, 6000) for _ in range(12)],
+            'Cdiscount': [random.uniform(1000, 5000) for _ in range(12)]
+        }
         
         # Set up the plot
         x = np.arange(len(months))
-        width = 0.2  # Width of the bars
         
-        # Plot the bars for each platform
-        self.ecommerce_canvas.axes.bar(x - width*1.5, shopify_data, width, label='Shopify', color='#3B82F6')
-        self.ecommerce_canvas.axes.bar(x - width/2, amazon_data, width, label='Amazon', color='#F59E0B')
-        self.ecommerce_canvas.axes.bar(x + width/2, ebay_data, width, label='eBay', color='#10B981')
-        self.ecommerce_canvas.axes.bar(x + width*1.5, cdiscount_data, width, label='Cdiscount', color='#EF4444')
+        # Plot smooth curves for each platform
+        for platform, values in data.items():
+            # Use a polynomial of appropriate degree based on number of points
+            # For fewer months, use a lower degree to avoid overfitting
+            if len(months) >= 4:
+                degree = min(3, len(months) - 1)
+            else:
+                degree = 1  # Linear fit for 2-3 months
+                
+            z = np.polyfit(x, values, degree)
+            p = np.poly1d(z)
+            
+            # Create smooth curve with more points
+            xnew = np.linspace(0, len(months)-1, 100)  # 100 points for smooth curve
+            smooth_values = p(xnew)
+            
+            # Plot the smooth curve
+            self.ecommerce_canvas.axes.plot(xnew, smooth_values, linestyle='-', 
+                                          color=platform_colors[platform], 
+                                          linewidth=2, label=platform)
+            
+            # Add data points on the curve
+            for i in range(len(months)):
+                # Calculate the y-value on the curve for this x-point
+                point_y = p(i)
+                self.ecommerce_canvas.axes.plot(i, point_y, marker='o', 
+                                              markersize=6, color=platform_colors[platform])
+        
+        # Add event handling for tooltips
+        self.ecommerce_canvas.mpl_connect('motion_notify_event', self.on_ecommerce_hover)
         
         # Set labels and title
         self.ecommerce_canvas.axes.set_xlabel('Mois')
@@ -718,6 +899,27 @@ class DashboardView(QWidget):
         # Update the canvas
         self.ecommerce_canvas.draw()
     
+    def view_all_new_orders(self):
+        """
+        Open the orders view with the NEW status filter.
+        """
+        # Emit signal to open orders view with NEW status
+        self.open_orders_with_status.emit(OrderStatus.NEW)
+    
+    def view_all_active_print_jobs(self):
+        """
+        Open the printers view with the PRINTING status filter.
+        """
+        # Emit signal to open printers view with PRINTING status
+        self.open_printers_with_status.emit(PrintJobStatus.PRINTING)
+    
+    def view_all_unread_messages(self):
+        """
+        Open the customers view with the NEW message status filter.
+        """
+        # Emit signal to open customers view with NEW message status
+        self.open_customers_with_message_status.emit(EmailStatus.UNREAD)
+    
     def refresh_data(self):
         """
         Refresh the dashboard data.
@@ -731,8 +933,22 @@ class DashboardView(QWidget):
         self.update_ecommerce_histogram()
         try:
             # Get statistics
-            total_orders = self.db.query(Order).count()
-            total_revenue = self.db.query(Order).filter(Order.payment_status == PaymentStatus.PAID).with_entities(
+            # Get current month and year
+            now = datetime.now()
+            current_month = now.month
+            current_year = now.year
+            
+            # Count orders for current month only
+            total_orders = self.db.query(Order).filter(
+                func.extract('month', Order.order_date) == current_month,
+                func.extract('year', Order.order_date) == current_year
+            ).count()
+            # Calculate revenue for current month only
+            total_revenue = self.db.query(Order).filter(
+                Order.payment_status == PaymentStatus.PAID,
+                func.extract('month', Order.order_date) == current_month,
+                func.extract('year', Order.order_date) == current_year
+            ).with_entities(
                 func.sum(Order.total_amount)
             ).scalar() or 0
             total_customers = self.db.query(Customer).count()
@@ -793,8 +1009,25 @@ class DashboardView(QWidget):
                 self.jobs_table.setItem(i, 2, started_item)
                 
                 # Progress
-                progress_item = QTableWidgetItem(f"{job.progress:.1f}%")
-                self.jobs_table.setItem(i, 3, progress_item)
+                progress_widget = QProgressBar()
+                progress_widget.setRange(0, 100)
+                progress_widget.setValue(int(job.progress))
+                progress_widget.setTextVisible(True)
+                progress_widget.setFormat("%.1f%%" % job.progress)
+                progress_widget.setStyleSheet("""
+                    QProgressBar {
+                        background-color: #334155;
+                        border: none;
+                        border-radius: 4px;
+                        text-align: center;
+                        color: #F8FAFC;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #3B82F6;
+                        border-radius: 4px;
+                    }
+                """)
+                self.jobs_table.setCellWidget(i, 3, progress_widget)
                 
                 # Estimated completion
                 est_completion = job.estimated_completion_time

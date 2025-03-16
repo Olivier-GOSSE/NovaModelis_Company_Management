@@ -388,6 +388,9 @@ class MainWindow(QMainWindow):
         
         # Create views
         self.dashboard_view = DashboardView(self.db)
+        # Connect dashboard view signals to open views with specific status filters
+        self.dashboard_view.open_orders_with_status.connect(self.open_orders_with_status)
+        self.dashboard_view.open_printers_with_status.connect(self.open_printers_with_status)
         self.printers_view = PrintersView(self.db)
         self.customers_view = CustomersView(self.db)
         self.orders_view = OrdersView(self.db)
@@ -455,6 +458,32 @@ class MainWindow(QMainWindow):
         current_view = self.stacked_widget.currentWidget()
         if hasattr(current_view, 'refresh_data'):
             current_view.refresh_data()
+    
+    def open_orders_with_status(self, status):
+        """
+        Open the orders view with a specific status filter.
+        
+        Args:
+            status: The status to filter by.
+        """
+        # Switch to orders view
+        self.switch_view(3)
+        
+        # Set the status filter in the orders view
+        for i in range(self.orders_view.status_filter.count()):
+            if self.orders_view.status_filter.itemData(i) == status:
+                self.orders_view.status_filter.setCurrentIndex(i)
+                break
+    
+    def open_printers_with_status(self, status):
+        """
+        Open the printers view with a specific status filter.
+        
+        Args:
+            status: The status to filter by.
+        """
+        # Switch to printers view
+        self.switch_view(1)
     
     def on_theme_changed(self, is_dark_mode):
         """

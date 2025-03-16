@@ -138,7 +138,7 @@ class LoginWindow(QMainWindow):
                 color: #F8FAFC;
                 border: 1px solid #475569;
                 border-radius: 12px;
-                padding: 10px;
+                padding: 15px;
                 min-height: 45px;
                 height: 45px;
                 font-size: 14px;
@@ -162,7 +162,7 @@ class LoginWindow(QMainWindow):
                 color: #F8FAFC;
                 border: 1px solid #475569;
                 border-radius: 12px;
-                padding: 10px;
+                padding: 15px;
                 min-height: 45px;
                 height: 45px;
                 font-size: 14px;
