@@ -56,7 +56,8 @@ def create_resources_dirs():
         "dashboard.png", "printer.png", "customer.png", "order.png", 
         "settings.png", "user.png", "logout.png", "add.png", 
         "edit.png", "delete.png", "view.png", "refresh.png", 
-        "save.png", "email.png", "reply.png", "revenue.png"
+        "save.png", "email.png", "reply.png", "revenue.png",
+        "products.png", "suppliers.png"
     ]
     
     for icon_file in icon_files:

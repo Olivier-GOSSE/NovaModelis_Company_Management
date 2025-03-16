@@ -24,6 +24,7 @@ from views.orders_view import OrdersView
 from views.settings_view import SettingsView
 from views.products_view import ProductsView
 from views.suppliers_view import SuppliersView
+from views.financial_monitoring_view import FinancialMonitoringView
 import config
 
 
@@ -234,7 +235,7 @@ class MainWindow(QMainWindow):
         
         # Suppliers button
         self.suppliers_btn = QPushButton("Fournisseurs")
-        self.suppliers_btn.setIcon(QIcon("src/resources/icons/suppliers.png"))  # Utilisation de l'icône client pour le moment
+        self.suppliers_btn.setIcon(QIcon("src/resources/icons/suppliers.png"))
         self.suppliers_btn.setIconSize(QSize(36, 36))
         self.suppliers_btn.setCursor(Qt.PointingHandCursor)
         self.suppliers_btn.setCheckable(True)
@@ -257,6 +258,32 @@ class MainWindow(QMainWindow):
             }
         """)
         self.suppliers_btn.clicked.connect(lambda: self.switch_view(5))
+        
+        # Financial Monitoring button
+        self.financial_btn = QPushButton("Monitoring Financier")
+        self.financial_btn.setIcon(QIcon("src/resources/icons/monitoring.png"))
+        self.financial_btn.setIconSize(QSize(36, 36))
+        self.financial_btn.setCursor(Qt.PointingHandCursor)
+        self.financial_btn.setCheckable(True)
+        self.financial_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background-color: #1E293B;
+                color: #F8FAFC;
+            }
+            QPushButton:checked {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+            }
+        """)
+        self.financial_btn.clicked.connect(lambda: self.switch_view(6))
         
         # Settings button
         self.settings_btn = QPushButton("Paramètres")
@@ -282,7 +309,7 @@ class MainWindow(QMainWindow):
                 color: #F8FAFC;
             }
         """)
-        self.settings_btn.clicked.connect(lambda: self.switch_view(6))
+        self.settings_btn.clicked.connect(lambda: self.switch_view(7))
         
         nav_layout.addWidget(self.dashboard_btn)
         nav_layout.addWidget(self.printers_btn)
@@ -290,6 +317,7 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(self.orders_btn)
         nav_layout.addWidget(self.products_btn)
         nav_layout.addWidget(self.suppliers_btn)
+        nav_layout.addWidget(self.financial_btn)
         nav_layout.addStretch()
         
         sidebar_layout.addWidget(nav_frame)
@@ -365,6 +393,7 @@ class MainWindow(QMainWindow):
         self.orders_view = OrdersView(self.db)
         self.products_view = ProductsView(self.db)
         self.suppliers_view = SuppliersView(self.db)
+        self.financial_view = FinancialMonitoringView(self.db)
         self.settings_view = SettingsView(self.db, self.user)
         
         # Connect settings view theme changed signal
@@ -377,6 +406,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.orders_view)
         self.stacked_widget.addWidget(self.products_view)
         self.stacked_widget.addWidget(self.suppliers_view)
+        self.stacked_widget.addWidget(self.financial_view)
         self.stacked_widget.addWidget(self.settings_view)
         
         content_layout.addWidget(self.stacked_widget)
@@ -399,7 +429,8 @@ class MainWindow(QMainWindow):
         self.orders_btn.setChecked(index == 3)
         self.products_btn.setChecked(index == 4)
         self.suppliers_btn.setChecked(index == 5)
-        self.settings_btn.setChecked(index == 6)
+        self.financial_btn.setChecked(index == 6)
+        self.settings_btn.setChecked(index == 7)
         
         # Switch view
         self.stacked_widget.setCurrentIndex(index)
@@ -473,8 +504,11 @@ class MainWindow(QMainWindow):
             event: The close event.
         """
         # Clean up resources
-        self.refresh_timer.stop()
-        self.db.close()
+        if hasattr(self, 'refresh_timer'):
+            self.refresh_timer.stop()
+        
+        if hasattr(self, 'db'):
+            self.db.close()
         
         # Accept the event
         event.accept()
