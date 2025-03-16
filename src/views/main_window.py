@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
         self.db = SessionLocal()
         
         self.setWindowTitle(config.APP_NAME)
-        self.setWindowIcon(QIcon("src/resources/icons/Logo.png"))
+        self.setWindowIcon(QIcon("src/resources/icons/logo.png"))
         
         # Rendre la fenêtre non redimensionnable et en plein écran
         self.setWindowFlags(self.windowFlags() | Qt.MSWindowsFixedSizeDialogHint)
@@ -83,7 +83,7 @@ class MainWindow(QMainWindow):
         logo_layout.setContentsMargins(15, 0, 15, 0)
         
         logo_label = QLabel()
-        logo_label.setPixmap(QIcon("src/resources/icons/Logo.png").pixmap(QSize(24, 24)))
+        logo_label.setPixmap(QIcon("src/resources/icons/logo.png").pixmap(QSize(24, 24)))
         
         title_label = QLabel("NovaModelis")
         title_label.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")

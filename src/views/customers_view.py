@@ -28,16 +28,21 @@ class CustomerDetailsDialog(QDialog):
     Dialog for viewing and editing customer details.
     """
     def __init__(self, customer=None, parent=None, read_only=False):
+        # For window dragging
+        self.dragging = False
+        self.drag_position = None
+        
         super().__init__(parent)
         
         self.customer = customer
         self.is_edit_mode = customer is not None
         self.read_only = read_only
         
-        if self.read_only:
-            self.setWindowTitle(f"Voir Client")
-        else:
-            self.setWindowTitle(f"{'Modifier' if self.is_edit_mode else 'Ajouter'} Client")
+        # Remove window frame and title bar
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        
+        # Set window transparency
+        self.setWindowOpacity(0.9)  # 10% transparency
         
         self.setMinimumSize(500, 600)
         
@@ -49,6 +54,31 @@ class CustomerDetailsDialog(QDialog):
         # If read-only mode, disable all inputs
         if self.read_only:
             self.set_read_only()
+    
+    def mousePressEvent(self, event):
+        """
+        Handle mouse press event for window dragging.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """
+        Handle mouse move event for window dragging.
+        """
+        if event.buttons() & Qt.LeftButton and self.dragging:
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        """
+        Handle mouse release event for window dragging.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            event.accept()
     
     def set_read_only(self):
         """
@@ -109,6 +139,40 @@ class CustomerDetailsDialog(QDialog):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
+        
+        # Custom title bar
+        title_bar_layout = QHBoxLayout()
+        title_bar_layout.setContentsMargins(0, 0, 0, 10)
+        
+        # Title
+        title_label = QLabel("Voir Client" if self.read_only else f"{'Modifier' if self.is_edit_mode else 'Ajouter'} Client")
+        title_label.setStyleSheet("color: #F8FAFC; font-size: 18px; font-weight: bold;")
+        
+        # Close button
+        close_btn = QPushButton("×")  # Unicode multiplication sign as close icon
+        close_btn.setFixedSize(30, 30)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                font-size: 20px;
+                font-weight: bold;
+                border: none;
+                border-radius: 15px;
+            }
+            QPushButton:hover {
+                background-color: #EF4444;
+                color: #F8FAFC;
+            }
+        """)
+        close_btn.clicked.connect(self.reject)
+        
+        title_bar_layout.addWidget(title_label)
+        title_bar_layout.addStretch()
+        title_bar_layout.addWidget(close_btn)
+        
+        main_layout.addLayout(title_bar_layout)
         
         # Form layout
         form_layout = QFormLayout()
@@ -785,7 +849,17 @@ class CustomersView(QWidget):
             
             # Create message dialog
             dialog = QDialog(self)
-            dialog.setWindowTitle(message.subject)
+            
+            # For window dragging
+            dialog.dragging = False
+            dialog.drag_position = None
+            
+            # Remove window frame and title bar
+            dialog.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            
+            # Set window transparency
+            dialog.setWindowOpacity(0.9)  # 10% transparency
+            
             dialog.setMinimumSize(500, 400)
             
             # Dialog layout
@@ -793,39 +867,102 @@ class CustomersView(QWidget):
             layout.setContentsMargins(20, 20, 20, 20)
             layout.setSpacing(15)
             
-            # Message header
-            header_layout = QGridLayout()
-            header_layout.setColumnStretch(1, 1)
+            # Custom title bar
+            title_bar_layout = QHBoxLayout()
+            title_bar_layout.setContentsMargins(0, 0, 0, 10)
+            
+            # Title
+            title_label = QLabel(message.subject)
+            title_label.setStyleSheet("color: #F8FAFC; font-size: 18px; font-weight: bold;")
+            
+            # Close button
+            close_btn = QPushButton("×")  # Unicode multiplication sign as close icon
+            close_btn.setFixedSize(30, 30)
+            close_btn.setCursor(Qt.PointingHandCursor)
+            close_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: transparent;
+                    color: #94A3B8;
+                    font-size: 20px;
+                    font-weight: bold;
+                    border: none;
+                    border-radius: 15px;
+                }
+                QPushButton:hover {
+                    background-color: #EF4444;
+                    color: #F8FAFC;
+                }
+            """)
+            close_btn.clicked.connect(dialog.accept)
+            
+            title_bar_layout.addWidget(title_label)
+            title_bar_layout.addStretch()
+            title_bar_layout.addWidget(close_btn)
+            
+            layout.addLayout(title_bar_layout)
+            
+            # Message header frame
+            header_frame = QFrame()
+            header_frame.setObjectName("headerFrame")
+            header_frame.setStyleSheet("""
+                #headerFrame {
+                    background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                    border-radius: 12px;
+                }
+            """)
+            
+            header_layout = QVBoxLayout(header_frame)
+            header_layout.setContentsMargins(15, 15, 15, 15)
             header_layout.setSpacing(10)
             
             # From/To
-            if message.is_incoming:
-                header_layout.addWidget(QLabel("De:"), 0, 0)
-                header_layout.addWidget(QLabel(customer_name), 0, 1)
-                header_layout.addWidget(QLabel("À:"), 1, 0)
-                header_layout.addWidget(QLabel("NovaModelis"), 1, 1)
-            else:
-                header_layout.addWidget(QLabel("De:"), 0, 0)
-                header_layout.addWidget(QLabel("NovaModelis"), 0, 1)
-                header_layout.addWidget(QLabel("À:"), 1, 0)
-                header_layout.addWidget(QLabel(customer_name), 1, 1)
+            from_to_layout = QHBoxLayout()
             
-            # Subject
-            header_layout.addWidget(QLabel("Sujet:"), 2, 0)
-            header_layout.addWidget(QLabel(message.subject), 2, 1)
+            from_label = QLabel()
+            to_label = QLabel()
+            
+            if message.is_incoming:
+                from_label.setText(f"De: {customer_name}")
+                to_label.setText(f"À: NovaModelis")
+            else:
+                from_label.setText(f"De: NovaModelis")
+                to_label.setText(f"À: {customer_name}")
+            
+            from_label.setStyleSheet("color: #94A3B8;")
+            to_label.setStyleSheet("color: #94A3B8;")
+            
+            from_to_layout.addWidget(from_label)
+            from_to_layout.addStretch()
+            from_to_layout.addWidget(to_label)
+            
+            header_layout.addLayout(from_to_layout)
             
             # Date
-            header_layout.addWidget(QLabel("Date:"), 3, 0)
-            header_layout.addWidget(QLabel(message.received_at.strftime("%d %b %Y %H:%M")), 3, 1)
+            date_layout = QHBoxLayout()
             
-            layout.addLayout(header_layout)
+            date_label = QLabel(f"Date: {message.received_at.strftime('%d %b %Y %H:%M')}")
+            date_label.setStyleSheet("color: #94A3B8;")
             
-            # Separator
-            separator = QFrame()
-            separator.setFrameShape(QFrame.HLine)
-            separator.setFrameShadow(QFrame.Sunken)
-            separator.setStyleSheet("background-color: #334155;")
-            layout.addWidget(separator)
+            date_layout.addWidget(date_label)
+            date_layout.addStretch()
+            
+            header_layout.addLayout(date_layout)
+            
+            layout.addWidget(header_frame)
+            
+            # Content frame
+            content_frame = QFrame()
+            content_frame.setObjectName("contentFrame")
+            content_frame.setStyleSheet("""
+                #contentFrame {
+                    background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
+                    border-radius: 12px;
+                }
+            """)
+            
+            content_layout = QVBoxLayout(content_frame)
+            content_layout.setContentsMargins(15, 15, 15, 15)
+            content_layout.setSpacing(10)
             
             # Message body
             body_text = QTextEdit()
@@ -833,31 +970,80 @@ class CustomersView(QWidget):
             body_text.setText(message.body)
             body_text.setStyleSheet("""
                 QTextEdit {
-                    background-color: #1E293B;
+                    background-color: rgba(30, 41, 59, 0.9); /* 10% transparency */
                     color: #F8FAFC;
-                    border: 1px solid #334155;
-                    border-radius: 4px;
-                    padding: 8px;
+                    border: none;
+                    border-radius: 12px;
                 }
             """)
-            layout.addWidget(body_text)
+            
+            content_layout.addWidget(body_text)
+            
+            layout.addWidget(content_frame)
             
             # Buttons
             buttons_layout = QHBoxLayout()
             buttons_layout.setSpacing(10)
             
-            close_btn = QPushButton("Fermer")
-            close_btn.clicked.connect(dialog.accept)
-            
             reply_btn = QPushButton("Répondre")
             reply_btn.setIcon(QIcon("src/resources/icons/reply.png"))
+            reply_btn.setCursor(Qt.PointingHandCursor)
+            reply_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #3B82F6;
+                    color: #F8FAFC;
+                    border: none;
+                    border-radius: 12px;
+                    padding: 8px 16px;
+                }
+                QPushButton:hover {
+                    background-color: #2563EB;
+                }
+            """)
             reply_btn.clicked.connect(lambda: self.reply_to_message_from_dialog(message, dialog))
             
-            buttons_layout.addStretch()
+            close_btn = QPushButton("Fermer")
+            close_btn.setCursor(Qt.PointingHandCursor)
+            close_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #475569;
+                    color: #F8FAFC;
+                    border: none;
+                    border-radius: 12px;
+                    padding: 8px 16px;
+                }
+                QPushButton:hover {
+                    background-color: #64748B;
+                }
+            """)
+            close_btn.clicked.connect(dialog.accept)
+            
             buttons_layout.addWidget(reply_btn)
+            buttons_layout.addStretch()
             buttons_layout.addWidget(close_btn)
             
             layout.addLayout(buttons_layout)
+            
+            # Add mouse event handlers for dragging
+            def mousePressEvent(event):
+                if event.button() == Qt.LeftButton:
+                    dialog.dragging = True
+                    dialog.drag_position = event.globalPosition().toPoint() - dialog.frameGeometry().topLeft()
+                    event.accept()
+            
+            def mouseMoveEvent(event):
+                if event.buttons() & Qt.LeftButton and dialog.dragging:
+                    dialog.move(event.globalPosition().toPoint() - dialog.drag_position)
+                    event.accept()
+            
+            def mouseReleaseEvent(event):
+                if event.button() == Qt.LeftButton:
+                    dialog.dragging = False
+                    event.accept()
+            
+            dialog.mousePressEvent = mousePressEvent
+            dialog.mouseMoveEvent = mouseMoveEvent
+            dialog.mouseReleaseEvent = mouseReleaseEvent
             
             # Show dialog
             dialog.exec()

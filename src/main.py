@@ -114,7 +114,7 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName(config.APP_NAME)
         app.setApplicationVersion(config.APP_VERSION)
-        app.setWindowIcon(QIcon("src/resources/icons/Logo.png"))
+        app.setWindowIcon(QIcon("src/resources/icons/logo.png"))
         
         # Set application style
         app.setStyle("Fusion")

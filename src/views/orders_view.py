@@ -31,18 +31,52 @@ class OrderDetailsDialog(QDialog):
     Dialog for viewing and editing order details.
     """
     def __init__(self, order=None, parent=None):
+        # For window dragging
+        self.dragging = False
+        self.drag_position = None
+        
         super().__init__(parent)
         
         self.order = order
         self.is_edit_mode = order is not None
         
-        self.setWindowTitle(f"{'Edit' if self.is_edit_mode else 'Add'} Order")
+        # Remove window frame and title bar
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        
+        # Set window transparency
+        self.setWindowOpacity(0.9)  # 10% transparency
+        
         self.setMinimumSize(700, 600)
         
         self.setup_ui()
         
         if self.is_edit_mode:
             self.load_order_data()
+    
+    def mousePressEvent(self, event):
+        """
+        Handle mouse press event for window dragging.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """
+        Handle mouse move event for window dragging.
+        """
+        if event.buttons() & Qt.LeftButton and self.dragging:
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        """
+        Handle mouse release event for window dragging.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            event.accept()
     
     def setup_ui(self):
         """
