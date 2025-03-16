@@ -234,7 +234,7 @@ class MainWindow(QMainWindow):
         
         # Suppliers button
         self.suppliers_btn = QPushButton("Fournisseurs")
-        self.suppliers_btn.setIcon(QIcon("src/resources/icons/sppliers.png"))  # Utilisation de l'icône client pour le moment
+        self.suppliers_btn.setIcon(QIcon("src/resources/icons/suppliers.png"))  # Utilisation de l'icône client pour le moment
         self.suppliers_btn.setIconSize(QSize(36, 36))
         self.suppliers_btn.setCursor(Qt.PointingHandCursor)
         self.suppliers_btn.setCheckable(True)
