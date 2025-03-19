@@ -591,7 +591,8 @@ class DashboardView(QWidget):
         """
         # Remove previous tooltip if it exists
         if hasattr(self, 'current_tooltip') and self.current_tooltip:
-            self.current_tooltip.remove()
+            # Instead of trying to remove the annotation, set its visibility to False
+            self.current_tooltip.set_visible(False)
             self.current_tooltip = None
             self.graph_canvas.draw_idle()
         
@@ -760,7 +761,8 @@ class DashboardView(QWidget):
         """
         # Remove previous tooltip if it exists
         if hasattr(self, 'current_ecommerce_tooltip') and self.current_ecommerce_tooltip:
-            self.current_ecommerce_tooltip.remove()
+            # Instead of trying to remove the annotation, set its visibility to False
+            self.current_ecommerce_tooltip.set_visible(False)
             self.current_ecommerce_tooltip = None
             self.ecommerce_canvas.draw_idle()
         

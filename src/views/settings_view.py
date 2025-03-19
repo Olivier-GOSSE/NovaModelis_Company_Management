@@ -117,6 +117,11 @@ class SettingsView(QWidget):
         self.setup_email_accounts_tab()
         self.tab_widget.addTab(self.email_accounts_tab, "Email Accounts")
         
+        # Financial settings tab
+        self.financial_tab = QWidget()
+        self.setup_financial_tab()
+        self.tab_widget.addTab(self.financial_tab, "Paramètres Financiers")
+        
         main_layout.addWidget(self.tab_widget)
     
     def setup_profile_tab(self):
@@ -1393,6 +1398,355 @@ class SettingsView(QWidget):
         # and then add a new email account frame to the scroll area
         # For this demo, we'll just show a message
         QMessageBox.information(self, "Add Email Account", "This would allow adding a new email account connection.")
+    
+    def setup_financial_tab(self):
+        """
+        Set up the financial settings tab with tax and margin parameters.
+        """
+        # Tab layout
+        tab_layout = QVBoxLayout(self.financial_tab)
+        tab_layout.setContentsMargins(20, 20, 20, 20)
+        tab_layout.setSpacing(20)
+        
+        # Tax settings frame
+        tax_frame = QFrame()
+        tax_frame.setObjectName("taxFrame")
+        tax_frame.setStyleSheet("""
+            #taxFrame {
+                background-color: #1E293B;
+                border-radius: 8px;
+            }
+        """)
+        
+        tax_layout = QVBoxLayout(tax_frame)
+        tax_layout.setContentsMargins(20, 20, 20, 20)
+        tax_layout.setSpacing(15)
+        
+        tax_title = QLabel("Paramètres de Taxes")
+        tax_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
+        
+        tax_layout.addWidget(tax_title)
+        
+        # Tax form
+        tax_form_layout = QFormLayout()
+        tax_form_layout.setSpacing(12)
+        
+        # TVA (Value Added Tax)
+        vat_label = QLabel("TVA (%):")
+        vat_label.setStyleSheet("color: #94A3B8;")
+        
+        self.vat_input = QSpinBox()
+        self.vat_input.setRange(0, 100)
+        self.vat_input.setValue(20)  # Default to 20% (common in many countries)
+        self.vat_input.setSuffix("%")
+        self.vat_input.setStyleSheet("""
+            QSpinBox {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 4px;
+                padding: 8px;
+                min-width: 100px;
+            }
+            QSpinBox:focus {
+                border: 1px solid #3B82F6;
+            }
+        """)
+        
+        tax_form_layout.addRow(vat_label, self.vat_input)
+        
+        # IS (Corporate Tax)
+        is_label = QLabel("IS (%):")
+        is_label.setStyleSheet("color: #94A3B8;")
+        
+        self.is_input = QSpinBox()
+        self.is_input.setRange(0, 100)
+        self.is_input.setValue(25)  # Default to 25% (common corporate tax rate)
+        self.is_input.setSuffix("%")
+        self.is_input.setStyleSheet("""
+            QSpinBox {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 4px;
+                padding: 8px;
+                min-width: 100px;
+            }
+            QSpinBox:focus {
+                border: 1px solid #3B82F6;
+            }
+        """)
+        
+        tax_form_layout.addRow(is_label, self.is_input)
+        
+        tax_layout.addLayout(tax_form_layout)
+        
+        tab_layout.addWidget(tax_frame)
+        
+        # Margin settings frame
+        margin_frame = QFrame()
+        margin_frame.setObjectName("marginFrame")
+        margin_frame.setStyleSheet("""
+            #marginFrame {
+                background-color: #1E293B;
+                border-radius: 8px;
+            }
+        """)
+        
+        margin_layout = QVBoxLayout(margin_frame)
+        margin_layout.setContentsMargins(20, 20, 20, 20)
+        margin_layout.setSpacing(15)
+        
+        # Header with title and add button
+        margin_header = QHBoxLayout()
+        
+        margin_title = QLabel("Paramètres de Marge")
+        margin_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
+        
+        add_param_btn = QPushButton("Ajouter un paramètre")
+        add_param_btn.setCursor(Qt.PointingHandCursor)
+        add_param_btn.setIcon(QIcon("src/resources/icons/add.png"))
+        add_param_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+            QPushButton:pressed {
+                background-color: #1D4ED8;
+            }
+        """)
+        add_param_btn.clicked.connect(self.add_margin_parameter)
+        
+        margin_header.addWidget(margin_title)
+        margin_header.addStretch()
+        margin_header.addWidget(add_param_btn)
+        
+        margin_layout.addLayout(margin_header)
+        
+        # Default margin
+        margin_form_layout = QFormLayout()
+        margin_form_layout.setSpacing(12)
+        
+        # Default margin percentage
+        default_margin_label = QLabel("Marge par défaut (%):")
+        default_margin_label.setStyleSheet("color: #94A3B8;")
+        
+        self.default_margin_input = QSpinBox()
+        self.default_margin_input.setRange(0, 1000)
+        self.default_margin_input.setValue(30)  # Default to 30%
+        self.default_margin_input.setSuffix("%")
+        self.default_margin_input.setStyleSheet("""
+            QSpinBox {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 4px;
+                padding: 8px;
+                min-width: 100px;
+            }
+            QSpinBox:focus {
+                border: 1px solid #3B82F6;
+            }
+        """)
+        
+        margin_form_layout.addRow(default_margin_label, self.default_margin_input)
+        
+        margin_layout.addLayout(margin_form_layout)
+        
+        # Additional margin parameters (container)
+        self.additional_params_container = QWidget()
+        additional_params_layout = QVBoxLayout(self.additional_params_container)
+        additional_params_layout.setContentsMargins(0, 0, 0, 0)
+        additional_params_layout.setSpacing(10)
+        
+        # Add a few example parameters
+        param1_layout = self.create_margin_parameter_layout("Frais de livraison", 5)
+        additional_params_layout.addLayout(param1_layout)
+        
+        param2_layout = self.create_margin_parameter_layout("Frais de marketing", 3)
+        additional_params_layout.addLayout(param2_layout)
+        
+        margin_layout.addWidget(self.additional_params_container)
+        
+        # Save button
+        save_btn = QPushButton("Enregistrer les modifications")
+        save_btn.setCursor(Qt.PointingHandCursor)
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+            QPushButton:pressed {
+                background-color: #1D4ED8;
+            }
+        """)
+        save_btn.clicked.connect(self.save_financial_settings)
+        
+        margin_layout.addWidget(save_btn)
+        
+        tab_layout.addWidget(margin_frame)
+        tab_layout.addStretch()
+    
+    def create_margin_parameter_layout(self, param_name="", param_value=0):
+        """
+        Create a layout for a margin parameter with name, value, and remove button.
+        
+        Args:
+            param_name: The name of the parameter.
+            param_value: The value of the parameter.
+            
+        Returns:
+            QHBoxLayout: The layout containing the parameter controls.
+        """
+        param_layout = QHBoxLayout()
+        param_layout.setSpacing(10)
+        
+        # Parameter name
+        name_input = QLineEdit()
+        name_input.setText(param_name)
+        name_input.setPlaceholderText("Nom du paramètre")
+        name_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3B82F6;
+            }
+        """)
+        
+        # Parameter value
+        value_input = QSpinBox()
+        value_input.setRange(0, 100)
+        value_input.setValue(param_value)
+        value_input.setSuffix("%")
+        value_input.setStyleSheet("""
+            QSpinBox {
+                background-color: #334155;
+                color: #F8FAFC;
+                border: 1px solid #475569;
+                border-radius: 4px;
+                padding: 8px;
+                min-width: 80px;
+            }
+            QSpinBox:focus {
+                border: 1px solid #3B82F6;
+            }
+        """)
+        
+        # Remove button
+        remove_btn = QPushButton()
+        remove_btn.setIcon(QIcon("src/resources/icons/delete.png"))
+        remove_btn.setIconSize(QSize(16, 16))
+        remove_btn.setFixedSize(36, 36)
+        remove_btn.setCursor(Qt.PointingHandCursor)
+        remove_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #334155;
+                border-radius: 4px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #EF4444;
+            }
+        """)
+        remove_btn.setToolTip("Supprimer ce paramètre")
+        remove_btn.clicked.connect(lambda: self.remove_margin_parameter(param_layout))
+        
+        param_layout.addWidget(name_input, 3)  # 3 parts for name
+        param_layout.addWidget(value_input, 1)  # 1 part for value
+        param_layout.addWidget(remove_btn, 0)  # Fixed width for button
+        
+        return param_layout
+    
+    def add_margin_parameter(self):
+        """
+        Add a new margin parameter to the list.
+        """
+        # Get the layout of the additional parameters container
+        container_layout = self.additional_params_container.layout()
+        
+        # Create a new parameter layout
+        new_param_layout = self.create_margin_parameter_layout()
+        
+        # Add it to the container
+        container_layout.addLayout(new_param_layout)
+    
+    def remove_margin_parameter(self, param_layout):
+        """
+        Remove a margin parameter from the list.
+        
+        Args:
+            param_layout: The layout containing the parameter to remove.
+        """
+        # Remove all widgets from the layout
+        while param_layout.count():
+            item = param_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Delete the layout itself
+        param_layout.deleteLater()
+    
+    def save_financial_settings(self):
+        """
+        Save the financial settings.
+        """
+        # Get the values from the form
+        vat = self.vat_input.value()
+        corporate_tax = self.is_input.value()
+        default_margin = self.default_margin_input.value()
+        
+        # Collect additional parameters
+        additional_params = []
+        container_layout = self.additional_params_container.layout()
+        
+        for i in range(container_layout.count()):
+            param_layout = container_layout.itemAt(i)
+            if param_layout and param_layout.layout():
+                # Get the name input (first widget)
+                name_input = param_layout.layout().itemAt(0).widget()
+                # Get the value input (second widget)
+                value_input = param_layout.layout().itemAt(1).widget()
+                
+                if name_input and value_input and name_input.text().strip():
+                    additional_params.append({
+                        "name": name_input.text().strip(),
+                        "value": value_input.value()
+                    })
+        
+        # In a real application, this would save to a database or config file
+        # For this demo, we'll just show a message
+        settings_message = (f"Paramètres financiers enregistrés :\n\n"
+                           f"• TVA : {vat}%\n"
+                           f"• IS : {corporate_tax}%\n"
+                           f"• Marge par défaut : {default_margin}%\n")
+        
+        if additional_params:
+            settings_message += "\nParamètres additionnels :\n"
+            for param in additional_params:
+                settings_message += f"• {param['name']} : {param['value']}%\n"
+        
+        QMessageBox.information(self, "Succès", settings_message)
+        
+        logging.info("Financial settings updated")
     
     def on_dark_mode_changed(self, state):
         """

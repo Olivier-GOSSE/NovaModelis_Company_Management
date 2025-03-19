@@ -25,6 +25,7 @@ from views.settings_view import SettingsView
 from views.products_view import ProductsView
 from views.suppliers_view import SuppliersView
 from views.financial_monitoring_view import FinancialMonitoringView
+from views.stock_view import StockView
 import config
 
 
@@ -285,6 +286,32 @@ class MainWindow(QMainWindow):
         """)
         self.financial_btn.clicked.connect(lambda: self.switch_view(6))
         
+        # Stock Management button
+        self.stock_btn = QPushButton("Gestion des Stocks")
+        self.stock_btn.setIcon(QIcon("src/resources/icons/products.png"))  # Utiliser une icône existante
+        self.stock_btn.setIconSize(QSize(36, 36))
+        self.stock_btn.setCursor(Qt.PointingHandCursor)
+        self.stock_btn.setCheckable(True)
+        self.stock_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                border: none;
+                border-radius: 4px;
+                padding: 10px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background-color: #1E293B;
+                color: #F8FAFC;
+            }
+            QPushButton:checked {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+            }
+        """)
+        self.stock_btn.clicked.connect(lambda: self.switch_view(7))
+        
         # Settings button
         self.settings_btn = QPushButton("Paramètres")
         self.settings_btn.setIcon(QIcon("src/resources/icons/settings.png"))
@@ -309,7 +336,7 @@ class MainWindow(QMainWindow):
                 color: #F8FAFC;
             }
         """)
-        self.settings_btn.clicked.connect(lambda: self.switch_view(7))
+        self.settings_btn.clicked.connect(lambda: self.switch_view(8))
         
         nav_layout.addWidget(self.dashboard_btn)
         nav_layout.addWidget(self.printers_btn)
@@ -318,6 +345,7 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(self.products_btn)
         nav_layout.addWidget(self.suppliers_btn)
         nav_layout.addWidget(self.financial_btn)
+        nav_layout.addWidget(self.stock_btn)
         nav_layout.addStretch()
         
         sidebar_layout.addWidget(nav_frame)
@@ -398,6 +426,7 @@ class MainWindow(QMainWindow):
         self.products_view = ProductsView(self.db)
         self.suppliers_view = SuppliersView(self.db)
         self.financial_view = FinancialMonitoringView(self.db)
+        self.stock_view = StockView(self.db)
         self.settings_view = SettingsView(self.db, self.user)
         
         # Connect settings view theme changed signal
@@ -411,6 +440,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.products_view)
         self.stacked_widget.addWidget(self.suppliers_view)
         self.stacked_widget.addWidget(self.financial_view)
+        self.stacked_widget.addWidget(self.stock_view)
         self.stacked_widget.addWidget(self.settings_view)
         
         content_layout.addWidget(self.stacked_widget)
@@ -434,7 +464,8 @@ class MainWindow(QMainWindow):
         self.products_btn.setChecked(index == 4)
         self.suppliers_btn.setChecked(index == 5)
         self.financial_btn.setChecked(index == 6)
-        self.settings_btn.setChecked(index == 7)
+        self.stock_btn.setChecked(index == 7)
+        self.settings_btn.setChecked(index == 8)
         
         # If switching to customers view, ensure we're showing all messages
         if index == 2 and self.customers_btn.isChecked():
