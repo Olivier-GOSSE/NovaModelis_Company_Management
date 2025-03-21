@@ -205,7 +205,8 @@ def global_exception_handler(exctype: Type[BaseException], value: BaseException,
     logger.critical(error_traceback)
     
     # Show a message box
-    app = QWidget.instance()
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance()
     if app:
         msg_box = QMessageBox()
         msg_box.setWindowTitle("Erreur non gérée")
