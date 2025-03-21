@@ -188,7 +188,7 @@ class Timer:
         logger.debug(f"Timer {self.name}: {execution_time:.6f} seconds")
         
         # Check if execution time exceeds threshold
-        if self.threshold is not None and execution_time > threshold:
+        if self.threshold is not None and execution_time > self.threshold:
             logger.warning(
                 f"Timer {self.name}: Execution time {execution_time:.6f} seconds "
                 f"exceeds threshold {self.threshold:.6f} seconds"

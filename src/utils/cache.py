@@ -1,11 +1,12 @@
 """
 Cache utility module.
-This module provides utilities for caching data.
+This module provides utilities for caching data in memory.
 """
 import time
 import logging
+import threading
 import functools
-from typing import Any, Dict, Callable, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -14,59 +15,108 @@ T = TypeVar('T')
 R = TypeVar('R')
 
 # Global cache storage
-_cache: Dict[str, Tuple[Any, float, Optional[float]]] = {}
+_cache: Dict[str, Dict[str, Any]] = {}
+_cache_lock = threading.RLock()
+
 
 def cache(
-    ttl: Optional[float] = 300.0,
-    key_prefix: str = "",
-    key_function: Optional[Callable[..., str]] = None
+    namespace: str,
+    key_func: Optional[Callable[..., str]] = None,
+    ttl: Optional[int] = None
 ) -> Callable[[Callable[..., R]], Callable[..., R]]:
     """
-    Cache decorator for functions.
+    Decorator for caching function results.
     
     Args:
-        ttl: Time to live in seconds. None means cache forever.
-        key_prefix: Prefix for cache keys.
-        key_function: Function to generate cache key from function arguments.
-            If None, a default key function is used.
+        namespace: Namespace for the cache.
+        key_func: Function to generate a cache key from the function arguments.
+            If None, uses a default key function that converts args and kwargs to a string.
+        ttl: Time to live in seconds. If None, the cache never expires.
     
     Returns:
-        Decorated function.
+        Decorated function that caches results.
     
     Example:
-        @cache(ttl=60)
-        def get_user(user_id):
-            # Expensive operation to get user
-            return user
+        @cache("my_namespace", ttl=60)
+        def my_function(arg1, arg2):
+            # Function to cache
+            return expensive_operation(arg1, arg2)
     """
+    def default_key_func(*args: Any, **kwargs: Any) -> str:
+        """
+        Default function to generate a cache key.
+        
+        Args:
+            *args: Function arguments.
+            **kwargs: Function keyword arguments.
+        
+        Returns:
+            Cache key as a string.
+        """
+        key_parts = []
+        
+        # Add positional arguments
+        for arg in args:
+            key_parts.append(str(arg))
+        
+        # Add keyword arguments
+        for key, value in sorted(kwargs.items()):
+            key_parts.append(f"{key}={value}")
+        
+        return ":".join(key_parts)
+    
     def decorator(func: Callable[..., R]) -> Callable[..., R]:
+        """
+        Decorator function.
+        
+        Args:
+            func: Function to decorate.
+        
+        Returns:
+            Decorated function.
+        """
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> R:
+            """
+            Wrapper function.
+            
+            Args:
+                *args: Function arguments.
+                **kwargs: Function keyword arguments.
+            
+            Returns:
+                Function result, either from cache or by calling the function.
+            """
             # Generate cache key
-            if key_function:
-                cache_key = f"{key_prefix}:{key_function(*args, **kwargs)}"
-            else:
-                # Default key function: combine function name, args, and kwargs
-                arg_key = ":".join(str(arg) for arg in args)
-                kwarg_key = ":".join(f"{k}={v}" for k, v in sorted(kwargs.items()))
-                cache_key = f"{key_prefix}:{func.__name__}:{arg_key}:{kwarg_key}"
+            key_generator = key_func or default_key_func
+            cache_key = key_generator(*args, **kwargs)
             
-            # Check if result is in cache and not expired
-            current_time = time.time()
-            if cache_key in _cache:
-                result, timestamp, expiry = _cache[cache_key]
-                if expiry is None or current_time < expiry:
-                    logger.debug(f"Cache hit for {cache_key}")
-                    return cast(R, result)
-                else:
-                    logger.debug(f"Cache expired for {cache_key}")
-                    del _cache[cache_key]
+            # Initialize namespace if it doesn't exist
+            with _cache_lock:
+                if namespace not in _cache:
+                    _cache[namespace] = {}
             
-            # Call the function and cache the result
+            # Check if result is in cache
+            with _cache_lock:
+                if cache_key in _cache[namespace]:
+                    cached_result, timestamp = _cache[namespace][cache_key]
+                    
+                    # Check if cache has expired
+                    if ttl is None or time.time() - timestamp < ttl:
+                        logger.debug(f"Cache hit for {func.__name__} with key {cache_key}")
+                        return cast(R, cached_result)
+                    else:
+                        # Cache has expired, remove it
+                        del _cache[namespace][cache_key]
+                        logger.debug(f"Cache expired for {func.__name__} with key {cache_key}")
+            
+            # Cache miss, call the function
+            logger.debug(f"Cache miss for {func.__name__} with key {cache_key}")
             result = func(*args, **kwargs)
-            expiry = None if ttl is None else current_time + ttl
-            _cache[cache_key] = (result, current_time, expiry)
-            logger.debug(f"Cached result for {cache_key}")
+            
+            # Store result in cache
+            with _cache_lock:
+                _cache[namespace][cache_key] = (result, time.time())
             
             return result
         
@@ -74,42 +124,105 @@ def cache(
     
     return decorator
 
-def clear_cache(key_prefix: str = "") -> None:
+
+def clear_cache(namespace: Optional[str] = None, key: Optional[str] = None) -> None:
     """
-    Clear cache entries with the given prefix.
+    Clear cache entries.
     
     Args:
-        key_prefix: Prefix for cache keys to clear.
-            If empty, all cache entries are cleared.
+        namespace: Namespace to clear. If None, clears all namespaces.
+        key: Key to clear within the namespace. If None, clears all keys in the namespace.
     """
-    global _cache
-    if not key_prefix:
-        _cache = {}
-        logger.debug("Cleared all cache entries")
-    else:
-        keys_to_delete = [k for k in _cache if k.startswith(key_prefix)]
-        for k in keys_to_delete:
-            del _cache[k]
-        logger.debug(f"Cleared {len(keys_to_delete)} cache entries with prefix {key_prefix}")
+    with _cache_lock:
+        if namespace is None:
+            # Clear all cache
+            _cache.clear()
+            logger.debug("Cleared all cache")
+        elif namespace in _cache:
+            if key is None:
+                # Clear namespace
+                _cache[namespace].clear()
+                logger.debug(f"Cleared cache for namespace {namespace}")
+            elif key in _cache[namespace]:
+                # Clear specific key
+                del _cache[namespace][key]
+                logger.debug(f"Cleared cache for namespace {namespace} and key {key}")
 
-def get_cache_stats() -> Dict[str, Any]:
+
+def get_cache_stats() -> Dict[str, Dict[str, Any]]:
     """
-    Get statistics about the cache.
+    Get cache statistics.
     
     Returns:
-        Dictionary with cache statistics.
+        Dictionary of cache statistics for each namespace.
     """
-    current_time = time.time()
-    total_entries = len(_cache)
-    expired_entries = sum(
-        1 for _, _, expiry in _cache.values()
-        if expiry is not None and current_time >= expiry
-    )
-    permanent_entries = sum(1 for _, _, expiry in _cache.values() if expiry is None)
+    stats: Dict[str, Dict[str, Any]] = {}
     
-    return {
-        "total_entries": total_entries,
-        "active_entries": total_entries - expired_entries,
-        "expired_entries": expired_entries,
-        "permanent_entries": permanent_entries
-    }
+    with _cache_lock:
+        for ns, entries in _cache.items():
+            stats[ns] = {
+                "count": len(entries),
+                "size_bytes": sum(len(str(entry)) for entry in entries.values()),
+                "keys": list(entries.keys())
+            }
+    
+    return stats
+
+
+def cache_result(
+    namespace: str,
+    key: str,
+    result: Any,
+    ttl: Optional[int] = None
+) -> None:
+    """
+    Cache a result manually.
+    
+    Args:
+        namespace: Namespace for the cache.
+        key: Cache key.
+        result: Result to cache.
+        ttl: Time to live in seconds. If None, the cache never expires.
+    """
+    with _cache_lock:
+        if namespace not in _cache:
+            _cache[namespace] = {}
+        
+        _cache[namespace][key] = (result, time.time())
+    
+    logger.debug(f"Manually cached result for namespace {namespace} and key {key}")
+
+
+def get_cached_result(
+    namespace: str,
+    key: str,
+    default: Optional[Any] = None,
+    ttl: Optional[int] = None
+) -> Any:
+    """
+    Get a cached result manually.
+    
+    Args:
+        namespace: Namespace for the cache.
+        key: Cache key.
+        default: Default value to return if the key is not in the cache.
+        ttl: Time to live in seconds. If None, the cache never expires.
+    
+    Returns:
+        Cached result or default value.
+    """
+    with _cache_lock:
+        if namespace not in _cache or key not in _cache[namespace]:
+            return default
+        
+        result, timestamp = _cache[namespace][key]
+        
+        # Check if cache has expired
+        if ttl is not None and time.time() - timestamp >= ttl:
+            # Cache has expired, remove it
+            del _cache[namespace][key]
+            logger.debug(f"Cache expired for namespace {namespace} and key {key}")
+            return default
+        
+        logger.debug(f"Manual cache hit for namespace {namespace} and key {key}")
+        return result

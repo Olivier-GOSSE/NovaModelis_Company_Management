@@ -55,11 +55,14 @@ def before_cursor_execute(conn, cursor, statement, parameters, context, executem
 
 @event.listens_for(engine, "after_cursor_execute")
 def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    total = time.time() - conn.info['query_start_time'].pop(-1)
-    if total > 0.5:  # Log slow queries (more than 500ms)
-        logger.warning(f"Slow query ({total:.2f}s): {statement}")
-    elif config.SQL_ECHO:
-        logger.debug(f"Query execution time: {total:.2f}s")
+    try:
+        total = time.time() - conn.info['query_start_time'].pop(-1)
+        if total > 0.5:  # Log slow queries (more than 500ms)
+            logger.warning(f"Slow query ({total:.2f}s): {statement}")
+        elif config.SQL_ECHO:
+            logger.debug(f"Query execution time: {total:.2f}s")
+    except (IndexError, KeyError) as e:
+        logger.error(f"Error calculating query time: {str(e)}")
 
 
 @timeit

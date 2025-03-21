@@ -1,14 +1,14 @@
 """
-Asynchronous utilities module.
+Async utility module.
 This module provides utilities for asynchronous operations.
 """
+import asyncio
+import concurrent.futures
+import functools
 import logging
 import threading
-import functools
-import traceback
-from typing import Any, Callable, Dict, List, Optional, TypeVar, cast
-
-from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool, Slot
+import time
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 logger = logging.getLogger(__name__)
 
@@ -16,177 +16,374 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T')
 R = TypeVar('R')
 
-class WorkerSignals(QObject):
+# Thread pool executor for running blocking operations
+_thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+
+
+def run_in_thread(func: Callable[..., R]) -> Callable[..., concurrent.futures.Future[R]]:
     """
-    Defines the signals available from a running worker thread.
-    
-    Signals:
-        started: Signal emitted when the worker starts.
-        finished: Signal emitted when the worker finishes.
-        error: Signal emitted when an error occurs. Passes the error and traceback.
-        result: Signal emitted with the result of the worker.
-        progress: Signal emitted to indicate progress (0-100).
-    """
-    started = Signal()
-    finished = Signal()
-    error = Signal(Exception, str)
-    result = Signal(object)
-    progress = Signal(int)
-
-
-class Worker(QRunnable):
-    """
-    Worker thread for running tasks asynchronously.
-    
-    Inherits from QRunnable to handle worker thread setup, signals and wrap-up.
-    """
-    def __init__(self, fn: Callable, *args: Any, **kwargs: Any):
-        """
-        Initialize the worker with the function to run and its arguments.
-        
-        Args:
-            fn: The function to run.
-            *args: Arguments to pass to the function.
-            **kwargs: Keyword arguments to pass to the function.
-        """
-        super().__init__()
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
-        
-        # Add the signals object to the kwargs if the function accepts it
-        if 'signals' in self.kwargs:
-            self.kwargs['signals'] = self.signals
-    
-    @Slot()
-    def run(self):
-        """
-        Run the worker function with the provided arguments.
-        
-        Emits signals for started, result, error, and finished.
-        """
-        try:
-            self.signals.started.emit()
-            result = self.fn(*self.args, **self.kwargs)
-            self.signals.result.emit(result)
-        except Exception as e:
-            logger.error(f"Error in worker thread: {str(e)}")
-            tb = traceback.format_exc()
-            self.signals.error.emit(e, tb)
-        finally:
-            self.signals.finished.emit()
-
-
-class AsyncRunner:
-    """
-    Utility class for running tasks asynchronously.
-    
-    This class provides methods for running tasks in separate threads
-    and handling their results.
-    """
-    def __init__(self, max_threads: Optional[int] = None):
-        """
-        Initialize the AsyncRunner with the maximum number of threads.
-        
-        Args:
-            max_threads: Maximum number of threads to use.
-                If None, uses the default QThreadPool maximum.
-        """
-        self.thread_pool = QThreadPool.globalInstance()
-        if max_threads is not None:
-            self.thread_pool.setMaxThreadCount(max_threads)
-        
-        logger.debug(f"AsyncRunner initialized with {self.thread_pool.maxThreadCount()} threads")
-    
-    def run(
-        self,
-        fn: Callable[..., R],
-        *args: Any,
-        on_result: Optional[Callable[[R], None]] = None,
-        on_error: Optional[Callable[[Exception, str], None]] = None,
-        on_finished: Optional[Callable[[], None]] = None,
-        on_progress: Optional[Callable[[int], None]] = None,
-        **kwargs: Any
-    ) -> Worker:
-        """
-        Run a function asynchronously.
-        
-        Args:
-            fn: The function to run.
-            *args: Arguments to pass to the function.
-            on_result: Callback for when the function returns a result.
-            on_error: Callback for when the function raises an exception.
-            on_finished: Callback for when the function finishes (success or error).
-            on_progress: Callback for progress updates.
-            **kwargs: Keyword arguments to pass to the function.
-        
-        Returns:
-            The worker instance.
-        """
-        worker = Worker(fn, *args, **kwargs)
-        
-        if on_result:
-            worker.signals.result.connect(on_result)
-        if on_error:
-            worker.signals.error.connect(on_error)
-        if on_finished:
-            worker.signals.finished.connect(on_finished)
-        if on_progress:
-            worker.signals.progress.connect(on_progress)
-        
-        self.thread_pool.start(worker)
-        return worker
-    
-    def wait_for_finished(self):
-        """
-        Wait for all tasks to finish.
-        """
-        self.thread_pool.waitForDone()
-
-
-# Global instance for convenience
-async_runner = AsyncRunner()
-
-
-def run_async(
-    on_result: Optional[Callable[[R], None]] = None,
-    on_error: Optional[Callable[[Exception, str], None]] = None,
-    on_finished: Optional[Callable[[], None]] = None
-) -> Callable[[Callable[..., R]], Callable[..., Worker]]:
-    """
-    Decorator for running a function asynchronously.
+    Decorator for running a function in a separate thread.
     
     Args:
-        on_result: Callback for when the function returns a result.
-        on_error: Callback for when the function raises an exception.
-        on_finished: Callback for when the function finishes (success or error).
+        func: The function to run in a thread.
     
     Returns:
-        Decorated function that runs asynchronously.
+        Decorated function that returns a Future.
     
     Example:
-        @run_async(
-            on_result=lambda result: print(f"Result: {result}"),
-            on_error=lambda error, tb: print(f"Error: {error}")
-        )
-        def long_running_task(x, y):
-            # Some long running operation
-            return x + y
-        
-        # Call the function asynchronously
-        worker = long_running_task(1, 2)
+        @run_in_thread
+        def my_blocking_function():
+            # Function to run in a thread
+            pass
+            
+        future = my_blocking_function()
+        result = future.result()  # Wait for the result
     """
-    def decorator(func: Callable[..., R]) -> Callable[..., Worker]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Worker:
-            return async_runner.run(
-                func,
-                *args,
-                on_result=on_result,
-                on_error=on_error,
-                on_finished=on_finished,
-                **kwargs
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> concurrent.futures.Future[R]:
+        return _thread_pool.submit(func, *args, **kwargs)
+    
+    return wrapper
+
+
+def run_async(func: Callable[..., R]) -> Callable[..., R]:
+    """
+    Decorator for running an async function in the current thread.
+    
+    Args:
+        func: The async function to run.
+    
+    Returns:
+        Decorated function that runs the async function and returns its result.
+    
+    Example:
+        @run_async
+        async def my_async_function():
+            # Async function
+            pass
+            
+        result = my_async_function()  # Run the async function
+    """
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> R:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # No event loop in this thread, create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        return loop.run_until_complete(func(*args, **kwargs))
+    
+    return wrapper
+
+
+def async_to_sync(func: Callable[..., asyncio.Future[R]]) -> Callable[..., R]:
+    """
+    Decorator for converting an async function to a sync function.
+    
+    Args:
+        func: The async function to convert.
+    
+    Returns:
+        Decorated function that runs the async function and returns its result.
+    
+    Example:
+        @async_to_sync
+        async def my_async_function():
+            # Async function
+            pass
+            
+        result = my_async_function()  # Run the async function synchronously
+    """
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> R:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # No event loop in this thread, create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        return loop.run_until_complete(func(*args, **kwargs))
+    
+    return wrapper
+
+
+def sync_to_async(func: Callable[..., R]) -> Callable[..., asyncio.Future[R]]:
+    """
+    Decorator for converting a sync function to an async function.
+    
+    Args:
+        func: The sync function to convert.
+    
+    Returns:
+        Decorated async function that runs the sync function in a thread pool.
+    
+    Example:
+        @sync_to_async
+        def my_sync_function():
+            # Sync function
+            pass
+            
+        await my_sync_function()  # Run the sync function asynchronously
+    """
+    @functools.wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> R:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            _thread_pool, functools.partial(func, *args, **kwargs)
+        )
+    
+    return wrapper
+
+
+class AsyncTimer:
+    """
+    Context manager for measuring execution time of an async block of code.
+    
+    Example:
+        async with AsyncTimer("my_operation"):
+            # Async code to measure
+            pass
+    """
+    def __init__(self, name: str, threshold: Optional[float] = None):
+        """
+        Initialize the timer.
+        
+        Args:
+            name: Name of the operation being timed.
+            threshold: Optional threshold in seconds. If the execution time exceeds
+                this threshold, a warning is logged.
+        """
+        self.name = name
+        self.threshold = threshold
+        self.start_time = 0.0
+    
+    async def __aenter__(self) -> 'AsyncTimer':
+        self.start_time = time.time()
+        return self
+    
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        end_time = time.time()
+        execution_time = end_time - self.start_time
+        
+        # Log the execution time
+        logger.debug(f"AsyncTimer {self.name}: {execution_time:.6f} seconds")
+        
+        # Check if execution time exceeds threshold
+        if self.threshold is not None and execution_time > self.threshold:
+            logger.warning(
+                f"AsyncTimer {self.name}: Execution time {execution_time:.6f} seconds "
+                f"exceeds threshold {self.threshold:.6f} seconds"
             )
-        return wrapper
-    return decorator
+
+
+class BackgroundTask:
+    """
+    Class for running a task in the background.
+    
+    Example:
+        task = BackgroundTask(my_function, args=(1, 2), kwargs={"key": "value"})
+        task.start()
+        # Do other work
+        result = task.get_result()  # Wait for the result
+    """
+    def __init__(
+        self,
+        func: Callable[..., R],
+        args: Optional[tuple] = None,
+        kwargs: Optional[dict] = None,
+        daemon: bool = True
+    ):
+        """
+        Initialize the background task.
+        
+        Args:
+            func: The function to run in the background.
+            args: Positional arguments to pass to the function.
+            kwargs: Keyword arguments to pass to the function.
+            daemon: Whether the thread should be a daemon thread.
+        """
+        self.func = func
+        self.args = args or ()
+        self.kwargs = kwargs or {}
+        self.daemon = daemon
+        self.result: Optional[R] = None
+        self.exception: Optional[Exception] = None
+        self.thread: Optional[threading.Thread] = None
+        self.completed = threading.Event()
+    
+    def _run(self) -> None:
+        """
+        Run the function and store the result or exception.
+        """
+        try:
+            self.result = self.func(*self.args, **self.kwargs)
+        except Exception as e:
+            self.exception = e
+        finally:
+            self.completed.set()
+    
+    def start(self) -> None:
+        """
+        Start the background task.
+        """
+        if self.thread is not None:
+            raise RuntimeError("Task already started")
+        
+        self.thread = threading.Thread(target=self._run)
+        self.thread.daemon = self.daemon
+        self.thread.start()
+    
+    def is_completed(self) -> bool:
+        """
+        Check if the task is completed.
+        
+        Returns:
+            True if the task is completed, False otherwise.
+        """
+        return self.completed.is_set()
+    
+    def wait(self, timeout: Optional[float] = None) -> bool:
+        """
+        Wait for the task to complete.
+        
+        Args:
+            timeout: Optional timeout in seconds.
+        
+        Returns:
+            True if the task completed, False if the timeout expired.
+        """
+        return self.completed.wait(timeout)
+    
+    def get_result(self, timeout: Optional[float] = None) -> R:
+        """
+        Get the result of the task.
+        
+        Args:
+            timeout: Optional timeout in seconds.
+        
+        Returns:
+            The result of the task.
+        
+        Raises:
+            TimeoutError: If the timeout expired.
+            Exception: If the task raised an exception.
+        """
+        if not self.wait(timeout):
+            raise TimeoutError(f"Task {self.func.__name__} timed out")
+        
+        if self.exception is not None:
+            raise self.exception
+        
+        return cast(R, self.result)
+
+
+class AsyncQueue:
+    """
+    Queue for asynchronous processing.
+    
+    Example:
+        queue = AsyncQueue()
+        
+        # Producer
+        await queue.put(item)
+        
+        # Consumer
+        item = await queue.get()
+        await queue.task_done()
+    """
+    def __init__(self, maxsize: int = 0):
+        """
+        Initialize the queue.
+        
+        Args:
+            maxsize: Maximum size of the queue. If 0, the queue size is unlimited.
+        """
+        self.queue = asyncio.Queue(maxsize)
+    
+    async def put(self, item: Any) -> None:
+        """
+        Put an item into the queue.
+        
+        Args:
+            item: The item to put into the queue.
+        """
+        await self.queue.put(item)
+    
+    async def get(self) -> Any:
+        """
+        Get an item from the queue.
+        
+        Returns:
+            The item from the queue.
+        """
+        return await self.queue.get()
+    
+    async def task_done(self) -> None:
+        """
+        Indicate that a formerly enqueued task is complete.
+        """
+        self.queue.task_done()
+    
+    async def join(self) -> None:
+        """
+        Block until all items in the queue have been processed.
+        """
+        await self.queue.join()
+    
+    def qsize(self) -> int:
+        """
+        Return the approximate size of the queue.
+        
+        Returns:
+            The approximate size of the queue.
+        """
+        return self.queue.qsize()
+    
+    def empty(self) -> bool:
+        """
+        Return True if the queue is empty, False otherwise.
+        
+        Returns:
+            True if the queue is empty, False otherwise.
+        """
+        return self.queue.empty()
+    
+    def full(self) -> bool:
+        """
+        Return True if the queue is full, False otherwise.
+        
+        Returns:
+            True if the queue is full, False otherwise.
+        """
+        return self.queue.full()
+
+
+async def gather_with_concurrency(
+    n: int,
+    *tasks: asyncio.Future,
+    return_exceptions: bool = False
+) -> List[Any]:
+    """
+    Run tasks with a concurrency limit.
+    
+    Args:
+        n: Maximum number of tasks to run concurrently.
+        *tasks: Tasks to run.
+        return_exceptions: Whether to return exceptions or raise them.
+    
+    Returns:
+        List of results from the tasks.
+    """
+    semaphore = asyncio.Semaphore(n)
+    
+    async def run_task(task: asyncio.Future) -> Any:
+        async with semaphore:
+            return await task
+    
+    return await asyncio.gather(
+        *(run_task(task) for task in tasks),
+        return_exceptions=return_exceptions
+    )
