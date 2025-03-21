@@ -70,6 +70,7 @@ from .print_job import PrintJob
 from .customer_email import CustomerEmail
 from .supplier import Supplier
 from .supplier_email import SupplierEmail
+from .raw_material import RawMaterial
 
 # Export all models
 __all__ = [
@@ -83,6 +84,7 @@ __all__ = [
     "CustomerEmail",
     "Supplier",
     "SupplierEmail",
+    "RawMaterial",
     "PrinterStatus",
     "OrderStatus",
     "PaymentStatus",

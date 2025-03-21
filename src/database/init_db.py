@@ -14,7 +14,7 @@ from database.base import SessionLocal, init_db
 from models import (
     User, Printer, Customer, SalesChannel, Order, OrderItem, 
     PrintJob, CustomerEmail, PrinterStatus, OrderStatus, 
-    PaymentStatus, PrintJobStatus, EmailStatus
+    PaymentStatus, PrintJobStatus, EmailStatus, RawMaterial
 )
 from models.product import Product, Country, Sale
 import config
@@ -625,6 +625,61 @@ def create_demo_data():
         ]
         
         db.add_all(sales)
+        db.commit()
+        
+        # Create demo raw materials
+        raw_materials = [
+            RawMaterial(
+                name="Résine standard",
+                reference_code="RS-001",
+                type="Résine",
+                unit="l",
+                cost=45.99,
+                quantity=5.5,
+                reorder_level=2.0,
+                supplier="FournisseurResine",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            RawMaterial(
+                name="Filament PLA",
+                reference_code="PLA-002",
+                type="Plastique",
+                unit="kg",
+                cost=29.99,
+                quantity=8.2,
+                reorder_level=3.0,
+                supplier="PlastiquesPro",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            RawMaterial(
+                name="Peinture acrylique",
+                reference_code="PA-003",
+                type="Peinture",
+                unit="ml",
+                cost=12.50,
+                quantity=750.0,
+                reorder_level=200.0,
+                supplier="ColorShop",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            ),
+            RawMaterial(
+                name="Aluminium",
+                reference_code="AL-004",
+                type="Métal",
+                unit="kg",
+                cost=18.75,
+                quantity=3.0,
+                reorder_level=1.0,
+                supplier="MetalExpress",
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            )
+        ]
+        
+        db.add_all(raw_materials)
         db.commit()
         
         # Create demo customer emails
