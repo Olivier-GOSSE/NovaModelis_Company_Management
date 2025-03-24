@@ -31,6 +31,12 @@
 - Inclut des validateurs pour les emails, numéros de téléphone, URLs, dates, etc.
 - Fournit des fonctions de validation avec des messages d'erreur personnalisés en français
 
+### 2.4 Gestion Détaillée des Produits
+- Ajout d'une boîte de dialogue de détails pour les produits
+- Permet d'ajouter les différentes pièces d'un produit avec leurs matériaux, fournisseurs, quantités et temps de fabrication
+- Calcul automatique du coût de production en fonction des matières premières utilisées
+- Interface utilisateur cohérente avec le reste de l'application (style, comportement)
+
 ## 3. Améliorations de l'Interface Utilisateur
 
 ### 3.1 Optimisation de l'affichage des produits

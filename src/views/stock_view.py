@@ -25,12 +25,15 @@ from models.raw_material import RawMaterial
 
 class AddProductDialog(QDialog):
     """Dialog for adding a new finished product."""
-    def __init__(self, parent=None):
+    def __init__(self, db, parent=None):
         # For window dragging
         self.dragging = False
         self.drag_position = None
         
         super().__init__(parent)
+        
+        self.db = db
+        self.production_data = None
         
         # Remove window frame and title bar
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
@@ -94,12 +97,36 @@ class AddProductDialog(QDialog):
         self.category_input.setEditable(True)
         form_layout.addRow("Catégorie:", self.category_input)
         
-        # Price
+        # Production cost
         self.price_input = QDoubleSpinBox()
         self.price_input.setRange(0, 10000)
         self.price_input.setDecimals(2)
         self.price_input.setSuffix(" €")
-        form_layout.addRow("Prix:", self.price_input)
+        self.price_input.setReadOnly(True)
+        
+        # Details button
+        details_btn = QPushButton("Détails")
+        details_btn.setCursor(Qt.PointingHandCursor)
+        details_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 12px;
+                padding: 4px 8px;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+        """)
+        details_btn.clicked.connect(self.show_details)
+        
+        # Cost layout with button
+        cost_layout = QHBoxLayout()
+        cost_layout.addWidget(self.price_input)
+        cost_layout.addWidget(details_btn)
+        
+        form_layout.addRow("Coût de production:", cost_layout)
         
         # Quantity
         self.quantity_input = QSpinBox()
@@ -192,8 +219,30 @@ class AddProductDialog(QDialog):
             self.dragging = False
             event.accept()
     
+    def show_details(self):
+        """Show the product details dialog."""
+        from views.product_details_dialog import ProductDetailsDialog
+        
+        dialog = ProductDetailsDialog(self.db, self)
+        
+        # If we already have production data, load it into the dialog
+        if self.production_data:
+            # TODO: Load existing production data into the dialog
+            pass
+        
+        if dialog.exec():
+            # Get the production data
+            self.production_data = dialog.get_production_data()
+            
+            # Update the price input
+            self.price_input.setValue(self.production_data["production_cost"])
+    
     def get_product_data(self):
         """Get the product data from the form."""
+        production_time = 0
+        if self.production_data:
+            production_time = self.production_data["production_time"]
+            
         return {
             "name": self.name_input.text(),
             "sku": self.sku_input.text(),
@@ -201,7 +250,9 @@ class AddProductDialog(QDialog):
             "price": self.price_input.value(),
             "quantity": self.quantity_input.value(),
             "reorder_level": self.reorder_level_input.value(),
-            "description": self.description_input.text()
+            "description": self.description_input.text(),
+            "production_time": production_time,
+            "components": self.production_data["components"] if self.production_data else []
         }
 
 
@@ -914,7 +965,7 @@ class StockView(QWidget):
     
     def add_product(self):
         """Add a new product."""
-        dialog = AddProductDialog(self)
+        dialog = AddProductDialog(self.db, self)
         if dialog.exec():
             try:
                 product_data = dialog.get_product_data()
@@ -925,7 +976,7 @@ class StockView(QWidget):
                     description=product_data["description"],
                     production_cost=product_data["price"],
                     initial_quantity=product_data["quantity"],
-                    production_time=0.0  # Default value for production_time
+                    production_time=product_data["production_time"]
                 )
                 
                 # Add to database
@@ -953,7 +1004,7 @@ class StockView(QWidget):
                 return
             
             # Create and populate the dialog
-            dialog = AddProductDialog(self)
+            dialog = AddProductDialog(self.db, self)
             dialog.setWindowTitle("Modifier un Produit")
             dialog.name_input.setText(product.name)
             dialog.sku_input.setText("SKU-" + str(product.id))  # Using placeholder
