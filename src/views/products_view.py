@@ -156,7 +156,7 @@ class ProductsView(QWidget):
         
         main_layout.addLayout(header_layout)
         
-        # Products grid
+        # Products flow layout
         self.products_scroll = QScrollArea()
         self.products_scroll.setWidgetResizable(True)
         self.products_scroll.setStyleSheet("""
@@ -169,9 +169,11 @@ class ProductsView(QWidget):
         self.products_widget = QWidget()
         self.products_widget.setStyleSheet("background-color: #0F172A;")
         
-        self.products_grid = QGridLayout(self.products_widget)
-        self.products_grid.setContentsMargins(10, 10, 10, 10)
-        self.products_grid.setSpacing(20)
+        # Utiliser un QHBoxLayout au lieu de QGridLayout pour aligner les produits horizontalement
+        self.products_layout = QHBoxLayout(self.products_widget)
+        self.products_layout.setContentsMargins(10, 10, 10, 10)
+        self.products_layout.setSpacing(20)
+        self.products_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop)  # Aligner en haut à gauche
         
         self.products_scroll.setWidget(self.products_widget)
         
@@ -182,24 +184,22 @@ class ProductsView(QWidget):
         Refresh the products data.
         """
         try:
-            # Clear products grid
-            for i in reversed(range(self.products_grid.count())):
-                widget = self.products_grid.itemAt(i).widget()
+            # Clear products layout
+            for i in reversed(range(self.products_layout.count())):
+                widget = self.products_layout.itemAt(i).widget()
                 if widget:
                     widget.deleteLater()
             
             # Get products
             products = self.db.query(Product).all()
             
-            # Add products to grid
-            for i, product in enumerate(products):
+            # Add products to layout horizontalement
+            for product in products:
                 thumbnail = ProductThumbnail(product)
-                
-                # Add to grid, 4 columns
-                row = i // 4
-                col = i % 4
-                
-                self.products_grid.addWidget(thumbnail, row, col)
+                self.products_layout.addWidget(thumbnail)
+            
+            # Ajouter un stretch à la fin pour que les produits restent alignés à gauche
+            self.products_layout.addStretch()
             
             logging.info("Products view refreshed")
         except Exception as e:
@@ -212,8 +212,8 @@ class ProductsView(QWidget):
         search_text = self.search_input.text().lower()
         
         # Hide/show products based on search text
-        for i in range(self.products_grid.count()):
-            widget = self.products_grid.itemAt(i).widget()
+        for i in range(self.products_layout.count()):
+            widget = self.products_layout.itemAt(i).widget()
             if isinstance(widget, ProductThumbnail):
                 product_name = widget.product.name.lower()
                 widget.setVisible(search_text in product_name)
