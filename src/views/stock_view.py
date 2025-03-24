@@ -34,11 +34,12 @@ class AddProductDialog(QDialog):
         
         self.db = db
         self.production_data = None
+        self.image_paths = []  # Liste des chemins d'images
         
         # Remove window frame and title bar
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setWindowOpacity(0.9)  # 10% transparency
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(500)
         
         # Main layout
         layout = QVBoxLayout(self)
@@ -106,19 +107,22 @@ class AddProductDialog(QDialog):
         
         # Details button
         details_btn = QPushButton("Détails")
+        details_btn.setIcon(QIcon("src/resources/icons/view.png"))
         details_btn.setCursor(Qt.PointingHandCursor)
         details_btn.setStyleSheet("""
             QPushButton {
-                background-color: #3B82F6;
+                background-color: #0F172A;
                 color: #F8FAFC;
-                border: none;
-                border-radius: 12px;
+                border: 1px solid #1E293B;
+                border-radius: 4px;
                 padding: 4px 8px;
+                text-align: left;
             }
             QPushButton:hover {
-                background-color: #2563EB;
+                background-color: #1E293B;
             }
         """)
+        details_btn.setIconSize(QSize(16, 16))
         details_btn.clicked.connect(self.show_details)
         
         # Cost layout with button
@@ -142,6 +146,42 @@ class AddProductDialog(QDialog):
         self.description_input = QLineEdit()
         form_layout.addRow("Description:", self.description_input)
         
+        # Images section
+        images_label = QLabel("Images du produit:")
+        images_label.setStyleSheet("color: #94A3B8;")
+        
+        # Images layout
+        images_layout = QHBoxLayout()
+        
+        # Images list (placeholder)
+        self.images_list = QLabel("Aucune image sélectionnée")
+        self.images_list.setStyleSheet("color: #94A3B8; font-style: italic;")
+        
+        # Add image button
+        add_image_btn = QPushButton("Ajouter des images")
+        add_image_btn.setIcon(QIcon("src/resources/icons/add.png"))
+        add_image_btn.setCursor(Qt.PointingHandCursor)
+        add_image_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #0F172A;
+                color: #F8FAFC;
+                border: 1px solid #1E293B;
+                border-radius: 4px;
+                padding: 4px 8px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background-color: #1E293B;
+            }
+        """)
+        add_image_btn.setIconSize(QSize(16, 16))
+        add_image_btn.clicked.connect(self.add_images)
+        
+        images_layout.addWidget(self.images_list)
+        images_layout.addWidget(add_image_btn)
+        
+        form_layout.addRow(images_label, images_layout)
+        
         layout.addLayout(form_layout)
         
         # Buttons
@@ -150,11 +190,38 @@ class AddProductDialog(QDialog):
         
         self.cancel_btn = QPushButton("Annuler")
         self.cancel_btn.setObjectName("cancelBtn")
+        self.cancel_btn.setCursor(Qt.PointingHandCursor)
+        self.cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #475569;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 12px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #64748B;
+            }
+        """)
         self.cancel_btn.clicked.connect(self.reject)
         
         self.save_btn = QPushButton("Enregistrer")
+        self.save_btn.setCursor(Qt.PointingHandCursor)
+        self.save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 12px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+        """)
         self.save_btn.clicked.connect(self.accept)
         
+        buttons_layout.addStretch()
         buttons_layout.addWidget(self.cancel_btn)
         buttons_layout.addWidget(self.save_btn)
         
@@ -237,12 +304,64 @@ class AddProductDialog(QDialog):
             # Update the price input
             self.price_input.setValue(self.production_data["production_cost"])
     
+    def add_images(self):
+        """Add images to the product."""
+        file_dialog = QFileDialog()
+        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+        file_dialog.setNameFilter("Images (*.png *.jpg *.jpeg *.bmp *.gif)")
+        
+        if file_dialog.exec():
+            # Get selected files
+            file_paths = file_dialog.selectedFiles()
+            
+            # Add to image paths list
+            self.image_paths.extend(file_paths)
+            
+            # Update images list label
+            if self.image_paths:
+                self.images_list.setText(f"{len(self.image_paths)} image(s) sélectionnée(s)")
+                self.images_list.setStyleSheet("color: #F8FAFC;")
+            else:
+                self.images_list.setText("Aucune image sélectionnée")
+                self.images_list.setStyleSheet("color: #94A3B8; font-style: italic;")
+    
     def get_product_data(self):
         """Get the product data from the form."""
         production_time = 0
         if self.production_data:
             production_time = self.production_data["production_time"]
+        
+        # Générer un nom de fichier unique pour chaque image
+        import datetime
+        import shutil
+        import os
+        
+        image_paths = []
+        if self.image_paths:
+            # Créer le dossier des images de produits s'il n'existe pas
+            products_img_dir = "src/resources/images/products"
+            os.makedirs(products_img_dir, exist_ok=True)
             
+            # Copier chaque image avec un nom unique
+            for img_path in self.image_paths:
+                # Obtenir l'extension du fichier
+                _, ext = os.path.splitext(img_path)
+                
+                # Générer un nom de fichier unique basé sur le nom du produit et la date/heure
+                timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+                product_name = self.name_input.text().lower().replace(" ", "_")
+                new_filename = f"{product_name}_{timestamp}{ext}"
+                
+                # Chemin complet du nouveau fichier
+                new_path = os.path.join(products_img_dir, new_filename)
+                
+                # Copier le fichier
+                try:
+                    shutil.copy2(img_path, new_path)
+                    image_paths.append(new_path)
+                except Exception as e:
+                    logging.error(f"Erreur lors de la copie de l'image: {e}")
+        
         return {
             "name": self.name_input.text(),
             "sku": self.sku_input.text(),
@@ -252,7 +371,8 @@ class AddProductDialog(QDialog):
             "reorder_level": self.reorder_level_input.value(),
             "description": self.description_input.text(),
             "production_time": production_time,
-            "components": self.production_data["components"] if self.production_data else []
+            "components": self.production_data["components"] if self.production_data else [],
+            "image_paths": image_paths
         }
 
 

@@ -67,18 +67,52 @@ class PrinterDetailsDialog(QDialog):
     Dialog for viewing and editing printer details.
     """
     def __init__(self, printer=None, parent=None):
+        # Pour le glissement de la fenêtre
+        self.dragging = False
+        self.drag_position = None
+        
         super().__init__(parent)
         
         self.printer = printer
         self.is_edit_mode = printer is not None
         
-        self.setWindowTitle(f"{'Edit' if self.is_edit_mode else 'Add'} Printer")
+        # Supprimer le cadre et la barre de titre de la fenêtre
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        
+        # Définir la transparence de la fenêtre
+        self.setWindowOpacity(0.9)  # 10% de transparence
+        
         self.setMinimumSize(500, 600)
         
         self.setup_ui()
         
         if self.is_edit_mode:
             self.load_printer_data()
+    
+    def mousePressEvent(self, event):
+        """
+        Gérer l'événement de pression de la souris pour le glissement de la fenêtre.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """
+        Gérer l'événement de déplacement de la souris pour le glissement de la fenêtre.
+        """
+        if event.buttons() & Qt.LeftButton and self.dragging:
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        """
+        Gérer l'événement de relâchement de la souris pour le glissement de la fenêtre.
+        """
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            event.accept()
     
     def setup_ui(self):
         """
@@ -89,21 +123,70 @@ class PrinterDetailsDialog(QDialog):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
         
+        # Barre de titre personnalisée
+        title_bar_layout = QHBoxLayout()
+        title_bar_layout.setContentsMargins(0, 0, 0, 10)
+        
+        # Titre
+        title_label = QLabel(f"{'Modifier' if self.is_edit_mode else 'Ajouter'} une imprimante")
+        title_label.setStyleSheet("color: #F8FAFC; font-size: 18px; font-weight: bold;")
+        
+        # Bouton de fermeture
+        close_btn = QPushButton("×")  # Signe de multiplication Unicode comme icône de fermeture
+        close_btn.setFixedSize(30, 30)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #94A3B8;
+                font-size: 20px;
+                font-weight: bold;
+                border: none;
+                border-radius: 15px;
+            }
+            QPushButton:hover {
+                background-color: #EF4444;
+                color: #F8FAFC;
+            }
+        """)
+        close_btn.clicked.connect(self.reject)
+        
+        title_bar_layout.addWidget(title_label)
+        title_bar_layout.addStretch()
+        title_bar_layout.addWidget(close_btn)
+        
+        main_layout.addLayout(title_bar_layout)
+        
         # Form layout
-        form_layout = QFormLayout()
+        form_frame = QFrame()
+        form_frame.setObjectName("formFrame")
+        form_frame.setStyleSheet("""
+            #formFrame {
+                background-color: rgba(30, 41, 59, 0.9);
+                border-radius: 12px;
+            }
+        """)
+        
+        form_inner_layout = QVBoxLayout(form_frame)
+        form_inner_layout.setContentsMargins(20, 20, 20, 20)
+        form_inner_layout.setSpacing(15)
+        
+        # Créer un widget pour contenir le formulaire
+        form_widget = QWidget()
+        form_layout = QFormLayout(form_widget)
         form_layout.setSpacing(10)
         
         # Name
         self.name_input = QLineEdit()
-        form_layout.addRow("Name:", self.name_input)
+        form_layout.addRow("Nom:", self.name_input)
         
         # Model
         self.model_input = QLineEdit()
-        form_layout.addRow("Model:", self.model_input)
+        form_layout.addRow("Modèle:", self.model_input)
         
         # Manufacturer
         self.manufacturer_input = QLineEdit()
-        form_layout.addRow("Manufacturer:", self.manufacturer_input)
+        form_layout.addRow("Fabricant:", self.manufacturer_input)
         
         # Build volume
         volume_layout = QHBoxLayout()
@@ -128,21 +211,21 @@ class PrinterDetailsDialog(QDialog):
         volume_layout.addWidget(QLabel("Z:"))
         volume_layout.addWidget(self.volume_z_input)
         
-        form_layout.addRow("Build Volume:", volume_layout)
+        form_layout.addRow("Volume d'impression:", volume_layout)
         
         # Status
         self.status_combo = QComboBox()
         for status in PrinterStatus:
             self.status_combo.addItem(status.value.capitalize(), status)
-        form_layout.addRow("Status:", self.status_combo)
+        form_layout.addRow("Statut:", self.status_combo)
         
         # IP address
         self.ip_input = QLineEdit()
-        form_layout.addRow("IP Address:", self.ip_input)
+        form_layout.addRow("Adresse IP:", self.ip_input)
         
         # API key
         self.api_key_input = QLineEdit()
-        form_layout.addRow("API Key:", self.api_key_input)
+        form_layout.addRow("Clé API:", self.api_key_input)
         
         # Power consumption
         self.consumption_input = QSpinBox()
@@ -155,19 +238,47 @@ class PrinterDetailsDialog(QDialog):
         self.notes_input = QLineEdit()
         form_layout.addRow("Notes:", self.notes_input)
         
-        main_layout.addLayout(form_layout)
+        form_inner_layout.addWidget(form_widget)
+        main_layout.addWidget(form_frame)
         
         # Buttons
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(10)
         
-        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn = QPushButton("Annuler")
+        self.cancel_btn.setCursor(Qt.PointingHandCursor)
+        self.cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #475569;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 12px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #64748B;
+            }
+        """)
         self.cancel_btn.clicked.connect(self.reject)
         
-        self.save_btn = QPushButton("Save")
+        self.save_btn = QPushButton("Enregistrer")
+        self.save_btn.setCursor(Qt.PointingHandCursor)
         self.save_btn.setDefault(True)
+        self.save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3B82F6;
+                color: #F8FAFC;
+                border: none;
+                border-radius: 12px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+            }
+        """)
         self.save_btn.clicked.connect(self.save_printer)
         
+        buttons_layout.addStretch()
         buttons_layout.addWidget(self.cancel_btn)
         buttons_layout.addWidget(self.save_btn)
         
@@ -290,7 +401,7 @@ class PrintersView(QWidget):
         # Header
         header_layout = QHBoxLayout()
         
-        header_title = QLabel("Printers")
+        header_title = QLabel("Imprimantes")
         header_title.setStyleSheet("color: #F8FAFC; font-size: 20px; font-weight: bold;")
         
         # Search box
@@ -298,7 +409,7 @@ class PrintersView(QWidget):
         search_layout.setSpacing(0)
         
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search printers...")
+        self.search_input.setPlaceholderText("Rechercher des imprimantes...")
         self.search_input.setStyleSheet("""
             QLineEdit {
                 background-color: #1E293B;
@@ -313,21 +424,24 @@ class PrintersView(QWidget):
         search_layout.addWidget(self.search_input)
         
         # Add printer button
-        self.add_btn = QPushButton("Add Printer")
+        self.add_btn = QPushButton("Ajouter une imprimante")
         self.add_btn.setIcon(QIcon("src/resources/icons/add.png"))
         self.add_btn.setCursor(Qt.PointingHandCursor)
         self.add_btn.setStyleSheet("""
             QPushButton {
-                background-color: #3B82F6;
+                background-color: #0F172A;
                 color: #F8FAFC;
-                border: none;
+                border: 1px solid #1E293B;
                 border-radius: 4px;
                 padding: 8px 16px;
+                text-align: left;
             }
             QPushButton:hover {
-                background-color: #2563EB;
+                background-color: #1E293B;
             }
         """)
+        # Ajuster la taille de l'icône
+        self.add_btn.setIconSize(QSize(16, 16))
         self.add_btn.clicked.connect(self.add_printer)
         
         header_layout.addWidget(header_title)
@@ -342,7 +456,7 @@ class PrintersView(QWidget):
         self.printers_table = QTableWidget()
         self.printers_table.setColumnCount(6)
         self.printers_table.setHorizontalHeaderLabels([
-            "Name", "Build Volume", "Status", "IP Address", "Operating Hours", "Actions"
+            "Nom", "Volume d'impression", "Statut", "Adresse IP", "Heures d'utilisation", "Actions"
         ])
         # Set row height to make icons fully visible
         self.printers_table.verticalHeader().setDefaultSectionSize(40)
@@ -392,7 +506,7 @@ class PrintersView(QWidget):
         jobs_layout.setSpacing(10)
         
         jobs_header = QHBoxLayout()
-        jobs_title = QLabel("Active Print Jobs")
+        jobs_title = QLabel("Travaux d'impression actifs")
         jobs_title.setStyleSheet("color: #F8FAFC; font-size: 16px; font-weight: bold;")
         
         jobs_header.addWidget(jobs_title)

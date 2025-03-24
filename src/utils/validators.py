@@ -1,530 +1,364 @@
 """
-Validators utility module.
-This module provides utilities for validating data.
+Utilitaires de validation pour l'application.
 """
 import re
-import logging
-from typing import Any, Callable, Dict, List, Optional, Pattern, TypeVar, Union, cast
+import datetime
+from typing import Any, Dict, List, Optional, Union, Callable, TypeVar, Generic
 
-logger = logging.getLogger(__name__)
-
-# Type variables for better type hinting
+# Type générique pour les valeurs validées
 T = TypeVar('T')
 
-
 class ValidationError(Exception):
-    """
-    Exception raised for validation errors.
-    """
+    """Exception levée lorsqu'une validation échoue."""
     def __init__(self, message: str, field: Optional[str] = None):
         self.message = message
         self.field = field
         super().__init__(message)
 
+class ValidationResult(Generic[T]):
+    """Résultat d'une validation."""
+    def __init__(self, is_valid: bool, value: Optional[T] = None, errors: Optional[Dict[str, str]] = None):
+        self.is_valid = is_valid
+        self.value = value
+        self.errors = errors or {}
+    
+    def __bool__(self) -> bool:
+        return self.is_valid
 
-def validate_email(email: str) -> bool:
+def validate_email(email: str) -> ValidationResult[str]:
     """
-    Validate an email address.
+    Valider une adresse e-mail.
     
     Args:
-        email: The email address to validate.
-    
+        email: L'adresse e-mail à valider.
+        
     Returns:
-        True if the email is valid, False otherwise.
+        Un résultat de validation.
     """
+    if not email:
+        return ValidationResult(False, None, {"email": "L'adresse e-mail est requise."})
+    
+    # Expression régulière pour valider les adresses e-mail
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return bool(re.match(pattern, email))
+    
+    if not re.match(pattern, email):
+        return ValidationResult(False, None, {"email": "L'adresse e-mail n'est pas valide."})
+    
+    return ValidationResult(True, email)
 
-
-def validate_phone(phone: str) -> bool:
+def validate_phone(phone: str) -> ValidationResult[str]:
     """
-    Validate a phone number.
+    Valider un numéro de téléphone.
     
     Args:
-        phone: The phone number to validate.
-    
+        phone: Le numéro de téléphone à valider.
+        
     Returns:
-        True if the phone number is valid, False otherwise.
+        Un résultat de validation.
     """
-    # Remove spaces, dashes, and parentheses
-    phone = re.sub(r'[\s\-\(\)]', '', phone)
+    if not phone:
+        return ValidationResult(False, None, {"phone": "Le numéro de téléphone est requis."})
     
-    # Check if the phone number is valid
-    pattern = r'^(\+\d{1,3})?(\d{10,15})$'
-    return bool(re.match(pattern, phone))
+    # Supprimer les espaces, tirets, parenthèses, etc.
+    cleaned_phone = re.sub(r'[\s\-\(\)\.]', '', phone)
+    
+    # Vérifier que le numéro ne contient que des chiffres
+    if not cleaned_phone.isdigit():
+        return ValidationResult(False, None, {"phone": "Le numéro de téléphone ne doit contenir que des chiffres."})
+    
+    # Vérifier la longueur (entre 8 et 15 chiffres)
+    if len(cleaned_phone) < 8 or len(cleaned_phone) > 15:
+        return ValidationResult(False, None, {"phone": "Le numéro de téléphone doit contenir entre 8 et 15 chiffres."})
+    
+    # Formater le numéro (exemple: +33 6 12 34 56 78)
+    if cleaned_phone.startswith('33') and len(cleaned_phone) == 11:
+        formatted_phone = '+33 ' + ' '.join([cleaned_phone[2:4], cleaned_phone[4:6], cleaned_phone[6:8], cleaned_phone[8:10], cleaned_phone[10:]])
+    elif cleaned_phone.startswith('0') and len(cleaned_phone) == 10:
+        formatted_phone = '+33 ' + ' '.join([cleaned_phone[1:3], cleaned_phone[3:5], cleaned_phone[5:7], cleaned_phone[7:9], cleaned_phone[9:]])
+    else:
+        formatted_phone = cleaned_phone
+    
+    return ValidationResult(True, formatted_phone)
 
-
-def validate_url(url: str) -> bool:
+def validate_date(date_str: str, format_str: str = '%Y-%m-%d') -> ValidationResult[datetime.date]:
     """
-    Validate a URL.
+    Valider une date.
     
     Args:
-        url: The URL to validate.
-    
+        date_str: La date à valider sous forme de chaîne.
+        format_str: Le format de la date.
+        
     Returns:
-        True if the URL is valid, False otherwise.
+        Un résultat de validation.
     """
-    pattern = r'^(https?|ftp)://[^\s/$.?#].[^\s]*$'
-    return bool(re.match(pattern, url))
-
-
-def validate_ip(ip: str) -> bool:
-    """
-    Validate an IP address.
+    if not date_str:
+        return ValidationResult(False, None, {"date": "La date est requise."})
     
-    Args:
-        ip: The IP address to validate.
-    
-    Returns:
-        True if the IP address is valid, False otherwise.
-    """
-    # IPv4 pattern
-    ipv4_pattern = r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$'
-    ipv4_match = re.match(ipv4_pattern, ip)
-    
-    if ipv4_match:
-        # Check if each octet is between 0 and 255
-        for octet in ipv4_match.groups():
-            if int(octet) > 255:
-                return False
-        return True
-    
-    # IPv6 pattern
-    ipv6_pattern = r'^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$'
-    return bool(re.match(ipv6_pattern, ip))
-
-
-def validate_date(date: str, format: str = '%Y-%m-%d') -> bool:
-    """
-    Validate a date string.
-    
-    Args:
-        date: The date string to validate.
-        format: The expected date format.
-    
-    Returns:
-        True if the date is valid, False otherwise.
-    """
     try:
-        import datetime
-        datetime.datetime.strptime(date, format)
-        return True
+        date_obj = datetime.datetime.strptime(date_str, format_str).date()
+        return ValidationResult(True, date_obj)
     except ValueError:
-        return False
+        return ValidationResult(False, None, {"date": f"La date n'est pas au format {format_str}."})
 
-
-def validate_time(time: str, format: str = '%H:%M:%S') -> bool:
+def validate_required(value: Any, field_name: str) -> ValidationResult[Any]:
     """
-    Validate a time string.
+    Valider qu'une valeur est présente.
     
     Args:
-        time: The time string to validate.
-        format: The expected time format.
-    
+        value: La valeur à valider.
+        field_name: Le nom du champ.
+        
     Returns:
-        True if the time is valid, False otherwise.
+        Un résultat de validation.
     """
-    try:
-        import datetime
-        datetime.datetime.strptime(time, format)
-        return True
-    except ValueError:
-        return False
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return ValidationResult(False, None, {field_name: "Ce champ est requis."})
+    
+    return ValidationResult(True, value)
 
-
-def validate_datetime(dt: str, format: str = '%Y-%m-%d %H:%M:%S') -> bool:
+def validate_length(value: str, min_length: int = 0, max_length: Optional[int] = None, field_name: str = "value") -> ValidationResult[str]:
     """
-    Validate a datetime string.
+    Valider la longueur d'une chaîne.
     
     Args:
-        dt: The datetime string to validate.
-        format: The expected datetime format.
-    
+        value: La chaîne à valider.
+        min_length: La longueur minimale.
+        max_length: La longueur maximale.
+        field_name: Le nom du champ.
+        
     Returns:
-        True if the datetime is valid, False otherwise.
+        Un résultat de validation.
     """
-    try:
-        import datetime
-        datetime.datetime.strptime(dt, format)
-        return True
-    except ValueError:
-        return False
-
-
-def validate_credit_card(card_number: str) -> bool:
-    """
-    Validate a credit card number using the Luhn algorithm.
+    if not isinstance(value, str):
+        return ValidationResult(False, None, {field_name: "La valeur doit être une chaîne de caractères."})
     
-    Args:
-        card_number: The credit card number to validate.
-    
-    Returns:
-        True if the credit card number is valid, False otherwise.
-    """
-    # Remove spaces and dashes
-    card_number = re.sub(r'[\s\-]', '', card_number)
-    
-    # Check if the card number contains only digits
-    if not card_number.isdigit():
-        return False
-    
-    # Check if the card number has a valid length
-    if len(card_number) < 13 or len(card_number) > 19:
-        return False
-    
-    # Luhn algorithm
-    digits = [int(d) for d in card_number]
-    checksum = 0
-    
-    for i, digit in enumerate(reversed(digits)):
-        if i % 2 == 1:
-            digit *= 2
-            if digit > 9:
-                digit -= 9
-        checksum += digit
-    
-    return checksum % 10 == 0
-
-
-def validate_password_strength(
-    password: str,
-    min_length: int = 8,
-    require_uppercase: bool = True,
-    require_lowercase: bool = True,
-    require_digit: bool = True,
-    require_special: bool = True
-) -> bool:
-    """
-    Validate password strength.
-    
-    Args:
-        password: The password to validate.
-        min_length: Minimum password length.
-        require_uppercase: Whether to require at least one uppercase letter.
-        require_lowercase: Whether to require at least one lowercase letter.
-        require_digit: Whether to require at least one digit.
-        require_special: Whether to require at least one special character.
-    
-    Returns:
-        True if the password meets the requirements, False otherwise.
-    """
-    # Check minimum length
-    if len(password) < min_length:
-        return False
-    
-    # Check for uppercase letters
-    if require_uppercase and not any(c.isupper() for c in password):
-        return False
-    
-    # Check for lowercase letters
-    if require_lowercase and not any(c.islower() for c in password):
-        return False
-    
-    # Check for digits
-    if require_digit and not any(c.isdigit() for c in password):
-        return False
-    
-    # Check for special characters
-    if require_special and not any(not c.isalnum() for c in password):
-        return False
-    
-    return True
-
-
-def validate_required(value: Any, field_name: str) -> None:
-    """
-    Validate that a value is not None or empty.
-    
-    Args:
-        value: The value to validate.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the value is None or empty.
-    """
-    if value is None:
-        raise ValidationError(f"Le champ {field_name} est requis.", field_name)
-    
-    if isinstance(value, str) and not value.strip():
-        raise ValidationError(f"Le champ {field_name} ne peut pas être vide.", field_name)
-    
-    if isinstance(value, (list, dict, set)) and not value:
-        raise ValidationError(f"Le champ {field_name} ne peut pas être vide.", field_name)
-
-
-def validate_min_length(value: str, min_length: int, field_name: str) -> None:
-    """
-    Validate that a string has a minimum length.
-    
-    Args:
-        value: The string to validate.
-        min_length: The minimum length.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is shorter than the minimum length.
-    """
     if len(value) < min_length:
-        raise ValidationError(
-            f"Le champ {field_name} doit contenir au moins {min_length} caractères.",
-            field_name
-        )
+        return ValidationResult(False, None, {field_name: f"Ce champ doit contenir au moins {min_length} caractères."})
+    
+    if max_length is not None and len(value) > max_length:
+        return ValidationResult(False, None, {field_name: f"Ce champ ne doit pas dépasser {max_length} caractères."})
+    
+    return ValidationResult(True, value)
 
-
-def validate_max_length(value: str, max_length: int, field_name: str) -> None:
+def validate_numeric(value: str, field_name: str = "value") -> ValidationResult[float]:
     """
-    Validate that a string has a maximum length.
+    Valider qu'une chaîne représente un nombre.
     
     Args:
-        value: The string to validate.
-        max_length: The maximum length.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is longer than the maximum length.
-    """
-    if len(value) > max_length:
-        raise ValidationError(
-            f"Le champ {field_name} ne peut pas contenir plus de {max_length} caractères.",
-            field_name
-        )
-
-
-def validate_min_value(value: Union[int, float], min_value: Union[int, float], field_name: str) -> None:
-    """
-    Validate that a number is greater than or equal to a minimum value.
-    
-    Args:
-        value: The number to validate.
-        min_value: The minimum value.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the number is less than the minimum value.
-    """
-    if value < min_value:
-        raise ValidationError(
-            f"Le champ {field_name} doit être supérieur ou égal à {min_value}.",
-            field_name
-        )
-
-
-def validate_max_value(value: Union[int, float], max_value: Union[int, float], field_name: str) -> None:
-    """
-    Validate that a number is less than or equal to a maximum value.
-    
-    Args:
-        value: The number to validate.
-        max_value: The maximum value.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the number is greater than the maximum value.
-    """
-    if value > max_value:
-        raise ValidationError(
-            f"Le champ {field_name} doit être inférieur ou égal à {max_value}.",
-            field_name
-        )
-
-
-def validate_pattern(value: str, pattern: Union[str, Pattern], field_name: str) -> None:
-    """
-    Validate that a string matches a pattern.
-    
-    Args:
-        value: The string to validate.
-        pattern: The pattern to match.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string does not match the pattern.
-    """
-    if isinstance(pattern, str):
-        pattern = re.compile(pattern)
-    
-    if not pattern.match(value):
-        raise ValidationError(
-            f"Le champ {field_name} ne correspond pas au format attendu.",
-            field_name
-        )
-
-
-def validate_email_field(value: str, field_name: str) -> None:
-    """
-    Validate that a string is a valid email address.
-    
-    Args:
-        value: The string to validate.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is not a valid email address.
-    """
-    if not validate_email(value):
-        raise ValidationError(
-            f"Le champ {field_name} doit être une adresse email valide.",
-            field_name
-        )
-
-
-def validate_phone_field(value: str, field_name: str) -> None:
-    """
-    Validate that a string is a valid phone number.
-    
-    Args:
-        value: The string to validate.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is not a valid phone number.
-    """
-    if not validate_phone(value):
-        raise ValidationError(
-            f"Le champ {field_name} doit être un numéro de téléphone valide.",
-            field_name
-        )
-
-
-def validate_url_field(value: str, field_name: str) -> None:
-    """
-    Validate that a string is a valid URL.
-    
-    Args:
-        value: The string to validate.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is not a valid URL.
-    """
-    if not validate_url(value):
-        raise ValidationError(
-            f"Le champ {field_name} doit être une URL valide.",
-            field_name
-        )
-
-
-def validate_date_field(value: str, format: str, field_name: str) -> None:
-    """
-    Validate that a string is a valid date.
-    
-    Args:
-        value: The string to validate.
-        format: The expected date format.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is not a valid date.
-    """
-    if not validate_date(value, format):
-        raise ValidationError(
-            f"Le champ {field_name} doit être une date valide au format {format}.",
-            field_name
-        )
-
-
-def validate_time_field(value: str, format: str, field_name: str) -> None:
-    """
-    Validate that a string is a valid time.
-    
-    Args:
-        value: The string to validate.
-        format: The expected time format.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is not a valid time.
-    """
-    if not validate_time(value, format):
-        raise ValidationError(
-            f"Le champ {field_name} doit être une heure valide au format {format}.",
-            field_name
-        )
-
-
-def validate_datetime_field(value: str, format: str, field_name: str) -> None:
-    """
-    Validate that a string is a valid datetime.
-    
-    Args:
-        value: The string to validate.
-        format: The expected datetime format.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is not a valid datetime.
-    """
-    if not validate_datetime(value, format):
-        raise ValidationError(
-            f"Le champ {field_name} doit être une date et heure valide au format {format}.",
-            field_name
-        )
-
-
-def validate_credit_card_field(value: str, field_name: str) -> None:
-    """
-    Validate that a string is a valid credit card number.
-    
-    Args:
-        value: The string to validate.
-        field_name: The name of the field being validated.
-    
-    Raises:
-        ValidationError: If the string is not a valid credit card number.
-    """
-    if not validate_credit_card(value):
-        raise ValidationError(
-            f"Le champ {field_name} doit être un numéro de carte de crédit valide.",
-            field_name
-        )
-
-
-def validate_password_field(
-    value: str,
-    field_name: str,
-    min_length: int = 8,
-    require_uppercase: bool = True,
-    require_lowercase: bool = True,
-    require_digit: bool = True,
-    require_special: bool = True
-) -> None:
-    """
-    Validate that a string is a strong password.
-    
-    Args:
-        value: The string to validate.
-        field_name: The name of the field being validated.
-        min_length: Minimum password length.
-        require_uppercase: Whether to require at least one uppercase letter.
-        require_lowercase: Whether to require at least one lowercase letter.
-        require_digit: Whether to require at least one digit.
-        require_special: Whether to require at least one special character.
-    
-    Raises:
-        ValidationError: If the string is not a strong password.
-    """
-    if not validate_password_strength(
-        value,
-        min_length,
-        require_uppercase,
-        require_lowercase,
-        require_digit,
-        require_special
-    ):
-        message = f"Le champ {field_name} doit contenir au moins {min_length} caractères"
+        value: La chaîne à valider.
+        field_name: Le nom du champ.
         
-        if require_uppercase:
-            message += ", une lettre majuscule"
+    Returns:
+        Un résultat de validation.
+    """
+    if not value:
+        return ValidationResult(False, None, {field_name: "Ce champ est requis."})
+    
+    try:
+        numeric_value = float(value)
+        return ValidationResult(True, numeric_value)
+    except ValueError:
+        return ValidationResult(False, None, {field_name: "Ce champ doit être un nombre."})
+
+def validate_integer(value: str, field_name: str = "value") -> ValidationResult[int]:
+    """
+    Valider qu'une chaîne représente un entier.
+    
+    Args:
+        value: La chaîne à valider.
+        field_name: Le nom du champ.
         
-        if require_lowercase:
-            message += ", une lettre minuscule"
+    Returns:
+        Un résultat de validation.
+    """
+    if not value:
+        return ValidationResult(False, None, {field_name: "Ce champ est requis."})
+    
+    try:
+        int_value = int(value)
+        return ValidationResult(True, int_value)
+    except ValueError:
+        return ValidationResult(False, None, {field_name: "Ce champ doit être un nombre entier."})
+
+def validate_range(value: Union[int, float], min_value: Optional[Union[int, float]] = None, 
+                  max_value: Optional[Union[int, float]] = None, field_name: str = "value") -> ValidationResult[Union[int, float]]:
+    """
+    Valider qu'un nombre est dans une plage donnée.
+    
+    Args:
+        value: Le nombre à valider.
+        min_value: La valeur minimale.
+        max_value: La valeur maximale.
+        field_name: Le nom du champ.
         
-        if require_digit:
-            message += ", un chiffre"
+    Returns:
+        Un résultat de validation.
+    """
+    if not isinstance(value, (int, float)):
+        return ValidationResult(False, None, {field_name: "La valeur doit être un nombre."})
+    
+    if min_value is not None and value < min_value:
+        return ValidationResult(False, None, {field_name: f"Ce champ doit être supérieur ou égal à {min_value}."})
+    
+    if max_value is not None and value > max_value:
+        return ValidationResult(False, None, {field_name: f"Ce champ doit être inférieur ou égal à {max_value}."})
+    
+    return ValidationResult(True, value)
+
+def validate_regex(value: str, pattern: str, message: str, field_name: str = "value") -> ValidationResult[str]:
+    """
+    Valider qu'une chaîne correspond à une expression régulière.
+    
+    Args:
+        value: La chaîne à valider.
+        pattern: L'expression régulière.
+        message: Le message d'erreur.
+        field_name: Le nom du champ.
         
-        if require_special:
-            message += ", un caractère spécial"
+    Returns:
+        Un résultat de validation.
+    """
+    if not isinstance(value, str):
+        return ValidationResult(False, None, {field_name: "La valeur doit être une chaîne de caractères."})
+    
+    if not re.match(pattern, value):
+        return ValidationResult(False, None, {field_name: message})
+    
+    return ValidationResult(True, value)
+
+def validate_choice(value: Any, choices: List[Any], field_name: str = "value") -> ValidationResult[Any]:
+    """
+    Valider qu'une valeur fait partie d'une liste de choix.
+    
+    Args:
+        value: La valeur à valider.
+        choices: La liste des choix valides.
+        field_name: Le nom du champ.
         
-        message += "."
+    Returns:
+        Un résultat de validation.
+    """
+    if value not in choices:
+        return ValidationResult(False, None, {field_name: "Cette valeur n'est pas valide."})
+    
+    return ValidationResult(True, value)
+
+def validate_url(url: str) -> ValidationResult[str]:
+    """
+    Valider une URL.
+    
+    Args:
+        url: L'URL à valider.
         
-        raise ValidationError(message, field_name)
+    Returns:
+        Un résultat de validation.
+    """
+    if not url:
+        return ValidationResult(False, None, {"url": "L'URL est requise."})
+    
+    # Expression régulière pour valider les URL
+    pattern = r'^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$'
+    
+    if not re.match(pattern, url):
+        return ValidationResult(False, None, {"url": "L'URL n'est pas valide."})
+    
+    # Ajouter le protocole si absent
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
+    return ValidationResult(True, url)
+
+def validate_postal_code(postal_code: str, country: str = 'FR') -> ValidationResult[str]:
+    """
+    Valider un code postal.
+    
+    Args:
+        postal_code: Le code postal à valider.
+        country: Le code du pays (ISO 3166-1 alpha-2).
+        
+    Returns:
+        Un résultat de validation.
+    """
+    if not postal_code:
+        return ValidationResult(False, None, {"postal_code": "Le code postal est requis."})
+    
+    # Patterns par pays
+    patterns = {
+        'FR': r'^\d{5}$',  # France: 5 chiffres
+        'BE': r'^\d{4}$',  # Belgique: 4 chiffres
+        'CH': r'^\d{4}$',  # Suisse: 4 chiffres
+        'CA': r'^[A-Za-z]\d[A-Za-z] \d[A-Za-z]\d$',  # Canada: A1A 1A1
+        'US': r'^\d{5}(-\d{4})?$',  # États-Unis: 5 chiffres ou 5+4
+        'UK': r'^[A-Za-z]{1,2}\d{1,2}[A-Za-z]? \d[A-Za-z]{2}$'  # Royaume-Uni: AA1A 1AA
+    }
+    
+    # Utiliser le pattern par défaut si le pays n'est pas dans la liste
+    pattern = patterns.get(country.upper(), r'^\d{4,10}$')
+    
+    if not re.match(pattern, postal_code):
+        return ValidationResult(False, None, {"postal_code": "Le code postal n'est pas valide pour ce pays."})
+    
+    return ValidationResult(True, postal_code)
+
+def validate_form(data: Dict[str, Any], validators: Dict[str, Callable[[Any], ValidationResult]]) -> ValidationResult[Dict[str, Any]]:
+    """
+    Valider un formulaire complet.
+    
+    Args:
+        data: Les données du formulaire.
+        validators: Les validateurs à appliquer pour chaque champ.
+        
+    Returns:
+        Un résultat de validation.
+    """
+    validated_data = {}
+    errors = {}
+    
+    for field, validator in validators.items():
+        field_value = data.get(field)
+        result = validator(field_value)
+        
+        if result.is_valid:
+            validated_data[field] = result.value
+        else:
+            errors.update(result.errors)
+    
+    if errors:
+        return ValidationResult(False, None, errors)
+    
+    return ValidationResult(True, validated_data)
+
+def validate_password_strength(password: str) -> ValidationResult[str]:
+    """
+    Valider la force d'un mot de passe.
+    
+    Args:
+        password: Le mot de passe à valider.
+        
+    Returns:
+        Un résultat de validation.
+    """
+    if not password:
+        return ValidationResult(False, None, {"password": "Le mot de passe est requis."})
+    
+    # Vérifier la longueur
+    if len(password) < 8:
+        return ValidationResult(False, None, {"password": "Le mot de passe doit contenir au moins 8 caractères."})
+    
+    # Vérifier la présence de lettres minuscules
+    if not re.search(r'[a-z]', password):
+        return ValidationResult(False, None, {"password": "Le mot de passe doit contenir au moins une lettre minuscule."})
+    
+    # Vérifier la présence de lettres majuscules
+    if not re.search(r'[A-Z]', password):
+        return ValidationResult(False, None, {"password": "Le mot de passe doit contenir au moins une lettre majuscule."})
+    
+    # Vérifier la présence de chiffres
+    if not re.search(r'\d', password):
+        return ValidationResult(False, None, {"password": "Le mot de passe doit contenir au moins un chiffre."})
+    
+    # Vérifier la présence de caractères spéciaux
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return ValidationResult(False, None, {"password": "Le mot de passe doit contenir au moins un caractère spécial."})
+    
+    return ValidationResult(True, password)

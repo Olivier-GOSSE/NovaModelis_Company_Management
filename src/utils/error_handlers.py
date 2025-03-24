@@ -1,230 +1,230 @@
 """
-Error handlers utility module.
-This module provides utilities for handling errors in the application.
+Gestionnaires d'erreurs pour l'application.
 """
 import sys
 import logging
 import traceback
-from types import TracebackType
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast
+from typing import Callable, Any, Optional, Dict, Type, List
+from functools import wraps
+from PySide6.QtWidgets import QMessageBox, QApplication
 
-from PySide6.QtWidgets import QMessageBox, QWidget
-
-logger = logging.getLogger(__name__)
-
-# Type variables for better type hinting
-T = TypeVar('T')
-R = TypeVar('R')
+# Liste des erreurs connues et leurs messages utilisateur
+ERROR_MESSAGES: Dict[Type[Exception], str] = {
+    ConnectionError: "Impossible de se connecter à la base de données. Veuillez vérifier votre connexion réseau.",
+    PermissionError: "Vous n'avez pas les permissions nécessaires pour effectuer cette action.",
+    FileNotFoundError: "Le fichier demandé est introuvable.",
+    ValueError: "Une valeur incorrecte a été fournie.",
+    TypeError: "Type de données incorrect.",
+    KeyError: "Clé non trouvée dans les données.",
+    IndexError: "Index hors limites.",
+    ZeroDivisionError: "Division par zéro détectée.",
+    MemoryError: "Mémoire insuffisante pour effectuer l'opération.",
+    TimeoutError: "L'opération a expiré. Veuillez réessayer."
+}
 
 class ApplicationError(Exception):
-    """Base class for application errors."""
-    def __init__(self, message: str, details: Optional[str] = None):
+    """
+    Classe de base pour les erreurs spécifiques à l'application.
+    """
+    def __init__(self, message: str, details: Optional[str] = None, error_code: Optional[int] = None):
         self.message = message
         self.details = details
+        self.error_code = error_code
         super().__init__(message)
 
-
 class DatabaseError(ApplicationError):
-    """Error raised for database operations."""
+    """Erreur liée à la base de données."""
     pass
-
 
 class ValidationError(ApplicationError):
-    """Error raised for validation errors."""
-    def __init__(self, message: str, field: Optional[str] = None, details: Optional[str] = None):
-        self.field = field
-        super().__init__(message, details)
-
-
-class NetworkError(ApplicationError):
-    """Error raised for network operations."""
+    """Erreur de validation des données."""
     pass
 
+class AuthenticationError(ApplicationError):
+    """Erreur d'authentification."""
+    pass
 
 class ResourceError(ApplicationError):
-    """Error raised for resource operations."""
+    """Erreur liée aux ressources (fichiers, images, etc.)."""
     pass
 
-
-class ConfigurationError(ApplicationError):
-    """Error raised for configuration errors."""
+class NetworkError(ApplicationError):
+    """Erreur réseau."""
     pass
 
-
-class PermissionError(ApplicationError):
-    """Error raised for permission errors."""
-    pass
-
-
-def handle_error(
-    error: Exception,
-    parent: Optional[QWidget] = None,
-    show_message_box: bool = True,
-    log_error: bool = True,
-    reraise: bool = False
-) -> None:
+def handle_exceptions(func: Callable) -> Callable:
     """
-    Handle an error by logging it and optionally showing a message box.
+    Décorateur pour gérer les exceptions et afficher un message d'erreur approprié.
     
     Args:
-        error: The error to handle.
-        parent: The parent widget for the message box.
-        show_message_box: Whether to show a message box.
-        log_error: Whether to log the error.
-        reraise: Whether to reraise the error after handling.
-    """
-    # Get error details
-    error_type = type(error).__name__
-    error_message = str(error)
-    error_traceback = traceback.format_exc()
-    
-    # Log the error
-    if log_error:
-        logger.error(f"{error_type}: {error_message}")
-        logger.debug(error_traceback)
-    
-    # Show a message box
-    if show_message_box:
-        title = "Erreur"
-        message = error_message
-        details = None
+        func: La fonction à décorer.
         
-        # Customize based on error type
-        if isinstance(error, DatabaseError):
-            title = "Erreur de base de données"
-            message = "Une erreur est survenue lors de l'accès à la base de données."
-            details = error_message
-        elif isinstance(error, ValidationError):
-            title = "Erreur de validation"
-            if error.field:
-                message = f"Erreur de validation dans le champ '{error.field}': {error_message}"
-            else:
-                message = f"Erreur de validation: {error_message}"
-            details = error.details
-        elif isinstance(error, NetworkError):
-            title = "Erreur réseau"
-            message = "Une erreur réseau est survenue."
-            details = error_message
-        elif isinstance(error, ResourceError):
-            title = "Erreur de ressource"
-            message = "Une erreur est survenue lors de l'accès à une ressource."
-            details = error_message
-        elif isinstance(error, ConfigurationError):
-            title = "Erreur de configuration"
-            message = "Une erreur de configuration est survenue."
-            details = error_message
-        elif isinstance(error, PermissionError):
-            title = "Erreur de permission"
-            message = "Vous n'avez pas les permissions nécessaires pour effectuer cette action."
-            details = error_message
-        
-        # Show the message box
-        msg_box = QMessageBox(parent)
-        msg_box.setWindowTitle(title)
-        msg_box.setText(message)
-        msg_box.setIcon(QMessageBox.Critical)
-        
-        if details:
-            msg_box.setDetailedText(details)
-        
-        msg_box.exec()
-    
-    # Reraise the error if requested
-    if reraise:
-        raise error
-
-
-def error_handler(
-    show_message_box: bool = True,
-    log_error: bool = True,
-    reraise: bool = False
-) -> Callable[[Callable[..., R]], Callable[..., R]]:
-    """
-    Decorator for handling errors in functions.
-    
-    Args:
-        show_message_box: Whether to show a message box.
-        log_error: Whether to log the error.
-        reraise: Whether to reraise the error after handling.
-    
     Returns:
-        Decorated function that handles errors.
-    
-    Example:
-        @error_handler(show_message_box=True, log_error=True)
-        def my_function():
-            # Function that might raise an error
-            pass
+        La fonction décorée.
     """
-    def decorator(func: Callable[..., R]) -> Callable[..., R]:
-        def wrapper(*args: Any, **kwargs: Any) -> R:
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                # Find the parent widget if any
-                parent = None
-                for arg in args:
-                    if isinstance(arg, QWidget):
-                        parent = arg
-                        break
-                
-                handle_error(
-                    e,
-                    parent=parent,
-                    show_message_box=show_message_box,
-                    log_error=log_error,
-                    reraise=reraise
-                )
-                
-                # Return a default value if not reraising
-                if not reraise:
-                    return cast(R, None)
-                
-                # This line is never reached if reraise is True
-                raise
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            # Journaliser l'erreur
+            logging.error(f"Erreur dans {func.__name__}: {str(e)}")
+            logging.error(traceback.format_exc())
+            
+            # Déterminer le message d'erreur à afficher
+            error_message = "Une erreur inattendue s'est produite."
+            
+            # Vérifier si c'est une erreur connue
+            for error_type, message in ERROR_MESSAGES.items():
+                if isinstance(e, error_type):
+                    error_message = message
+                    break
+            
+            # Si c'est une erreur d'application, utiliser son message
+            if isinstance(e, ApplicationError):
+                error_message = e.message
+                if e.details:
+                    error_message += f"\n\nDétails: {e.details}"
+            
+            # Afficher un message d'erreur à l'utilisateur
+            app = QApplication.instance()
+            if app:
+                QMessageBox.critical(None, "Erreur", error_message)
+            
+            # Retourner None ou réessayer selon le contexte
+            return None
+    
+    return wrapper
+
+def retry(max_attempts: int = 3, delay: float = 1.0, 
+          exceptions: List[Type[Exception]] = None) -> Callable:
+    """
+    Décorateur pour réessayer une fonction en cas d'échec.
+    
+    Args:
+        max_attempts: Nombre maximum de tentatives.
+        delay: Délai entre les tentatives (en secondes).
+        exceptions: Liste des exceptions à intercepter. Si None, toutes les exceptions sont interceptées.
+        
+    Returns:
+        Le décorateur.
+    """
+    import time
+    
+    if exceptions is None:
+        exceptions = [Exception]
+    
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except tuple(exceptions) as e:
+                    last_exception = e
+                    logging.warning(f"Tentative {attempt + 1}/{max_attempts} échouée pour {func.__name__}: {str(e)}")
+                    
+                    if attempt < max_attempts - 1:
+                        time.sleep(delay)
+            
+            # Toutes les tentatives ont échoué
+            logging.error(f"Toutes les tentatives ont échoué pour {func.__name__}: {str(last_exception)}")
+            raise last_exception
         
         return wrapper
     
     return decorator
 
-
-def global_exception_handler(exctype: Type[BaseException], value: BaseException, tb: Optional[TracebackType]) -> None:
+def log_exceptions(logger: Optional[logging.Logger] = None) -> Callable:
     """
-    Global exception handler for unhandled exceptions.
+    Décorateur pour journaliser les exceptions sans les intercepter.
     
     Args:
-        exctype: The exception type.
-        value: The exception value.
-        tb: The traceback.
+        logger: Logger à utiliser. Si None, le logger racine est utilisé.
+        
+    Returns:
+        Le décorateur.
     """
-    # Log the error
-    error_message = str(value)
-    error_traceback = "".join(traceback.format_exception(exctype, value, tb))
+    if logger is None:
+        logger = logging.getLogger()
     
-    logger.critical(f"Unhandled exception: {error_message}")
-    logger.critical(error_traceback)
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"Exception dans {func.__name__}: {str(e)}")
+                logger.error(traceback.format_exc())
+                raise  # Relancer l'exception
+        
+        return wrapper
     
-    # Show a message box
-    try:
-        from PySide6.QtWidgets import QApplication, QMessageBox
-        app = QApplication.instance()
-        if app:
-            msg_box = QMessageBox()
-            msg_box.setWindowTitle("Erreur non gérée")
-            msg_box.setText("Une erreur non gérée est survenue. L'application va se fermer.")
-            msg_box.setDetailedText(error_traceback)
-            msg_box.setIcon(QMessageBox.Critical)
-            msg_box.exec()
-    except Exception as e:
-        logger.error(f"Failed to show error message box: {str(e)}")
-    
-    # Exit the application
-    sys.exit(1)
+    return decorator
 
+def global_exception_handler(exctype, value, tb):
+    """
+    Gestionnaire d'exceptions global pour l'application.
+    
+    Args:
+        exctype: Type de l'exception.
+        value: Valeur de l'exception.
+        tb: Traceback de l'exception.
+    """
+    # Journaliser l'erreur
+    logging.critical("Exception non gérée:")
+    logging.critical(''.join(traceback.format_exception(exctype, value, tb)))
+    
+    # Afficher un message d'erreur à l'utilisateur
+    app = QApplication.instance()
+    if app:
+        error_message = "Une erreur critique s'est produite. L'application va être fermée."
+        
+        # Ajouter des détails pour les erreurs connues
+        for error_type, message in ERROR_MESSAGES.items():
+            if issubclass(exctype, error_type):
+                error_message = f"{message}\n\nL'application va être fermée."
+                break
+        
+        QMessageBox.critical(None, "Erreur critique", error_message)
+    
+    # Appeler le gestionnaire d'exceptions par défaut
+    sys.__excepthook__(exctype, value, tb)
 
-def install_global_exception_handler() -> None:
+def setup_exception_handling():
     """
-    Install the global exception handler.
+    Configurer la gestion des exceptions pour l'application.
     """
+    # Définir le gestionnaire d'exceptions global
     sys.excepthook = global_exception_handler
-    logger.info("Global exception handler installed")
+    
+    # Configurer la journalisation des erreurs
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        filename='data/logs/novamodelisapp.log',
+        filemode='a'
+    )
+    
+    logging.info("Gestionnaire d'exceptions configuré")
+
+def safe_call(func: Callable, *args, default_value: Any = None, **kwargs) -> Any:
+    """
+    Appeler une fonction de manière sécurisée, en retournant une valeur par défaut en cas d'erreur.
+    
+    Args:
+        func: La fonction à appeler.
+        *args: Arguments positionnels pour la fonction.
+        default_value: Valeur à retourner en cas d'erreur.
+        **kwargs: Arguments nommés pour la fonction.
+        
+    Returns:
+        Le résultat de la fonction ou la valeur par défaut en cas d'erreur.
+    """
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        logging.error(f"Erreur lors de l'appel de {func.__name__}: {str(e)}")
+        return default_value

@@ -1,263 +1,184 @@
 """
-Performance utility module.
-This module provides utilities for measuring and optimizing performance.
+Utilitaires d'optimisation des performances pour l'application.
 """
 import time
-import logging
 import functools
-import statistics
-from typing import Any, Callable, Dict, List, Optional, TypeVar, cast
+import logging
+from typing import Callable, Any, Dict, Optional
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
-logger = logging.getLogger(__name__)
+# Cache en mémoire simple
+_memory_cache: Dict[str, Dict[str, Any]] = {
+    "data": {},
+    "expiry": {}
+}
+_cache_lock = threading.RLock()
 
-# Type variables for better type hinting
-T = TypeVar('T')
-R = TypeVar('R')
-
-# Global storage for performance metrics
-_performance_metrics: Dict[str, List[float]] = {}
-
-
-def timeit(func: Callable[..., R]) -> Callable[..., R]:
+def measure_time(func: Callable) -> Callable:
     """
-    Decorator for measuring the execution time of a function.
+    Décorateur pour mesurer le temps d'exécution d'une fonction.
     
     Args:
-        func: The function to measure.
-    
+        func: La fonction à mesurer.
+        
     Returns:
-        Decorated function that measures execution time.
-    
-    Example:
-        @timeit
-        def my_function():
-            # Function to measure
-            pass
+        La fonction décorée.
     """
     @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> R:
+    def wrapper(*args, **kwargs):
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
         
-        execution_time = end_time - start_time
+        # Calculer la durée en millisecondes
+        duration = (end_time - start_time) * 1000
         
-        # Log the execution time
-        logger.debug(f"{func.__name__} executed in {execution_time:.6f} seconds")
-        
-        # Store the execution time for metrics
-        func_name = func.__name__
-        if func_name not in _performance_metrics:
-            _performance_metrics[func_name] = []
-        
-        _performance_metrics[func_name].append(execution_time)
+        # Journaliser la durée
+        logging.debug(f"Performance: {func.__name__} a pris {duration:.2f} ms")
         
         return result
     
     return wrapper
 
-
-def profile(
-    name: Optional[str] = None,
-    threshold: Optional[float] = None
-) -> Callable[[Callable[..., R]], Callable[..., R]]:
+def cache_result(expiry_seconds: int = 300) -> Callable:
     """
-    Decorator for profiling a function.
+    Décorateur pour mettre en cache le résultat d'une fonction.
     
     Args:
-        name: Optional name for the profile. If None, uses the function name.
-        threshold: Optional threshold in seconds. If the execution time exceeds
-            this threshold, a warning is logged.
-    
+        expiry_seconds: Durée de validité du cache en secondes.
+        
     Returns:
-        Decorated function that profiles execution.
-    
-    Example:
-        @profile(threshold=1.0)
-        def my_function():
-            # Function to profile
-            pass
+        Le décorateur.
     """
-    def decorator(func: Callable[..., R]) -> Callable[..., R]:
+    def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> R:
-            profile_name = name or func.__name__
+        def wrapper(*args, **kwargs):
+            # Créer une clé de cache basée sur la fonction et ses arguments
+            cache_key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
             
-            # Start profiling
-            start_time = time.time()
-            
-            # Call the function
-            result = func(*args, **kwargs)
-            
-            # End profiling
-            end_time = time.time()
-            execution_time = end_time - start_time
-            
-            # Log the execution time
-            logger.debug(f"Profile {profile_name}: {execution_time:.6f} seconds")
-            
-            # Check if execution time exceeds threshold
-            if threshold is not None and execution_time > threshold:
-                logger.warning(
-                    f"Profile {profile_name}: Execution time {execution_time:.6f} seconds "
-                    f"exceeds threshold {threshold:.6f} seconds"
-                )
-            
-            # Store the execution time for metrics
-            if profile_name not in _performance_metrics:
-                _performance_metrics[profile_name] = []
-            
-            _performance_metrics[profile_name].append(execution_time)
-            
-            return result
+            with _cache_lock:
+                # Vérifier si le résultat est dans le cache et n'a pas expiré
+                current_time = time.time()
+                if (cache_key in _memory_cache["data"] and 
+                    _memory_cache["expiry"].get(cache_key, 0) > current_time):
+                    return _memory_cache["data"][cache_key]
+                
+                # Exécuter la fonction et stocker le résultat
+                result = func(*args, **kwargs)
+                _memory_cache["data"][cache_key] = result
+                _memory_cache["expiry"][cache_key] = current_time + expiry_seconds
+                
+                return result
         
         return wrapper
     
     return decorator
 
-
-def get_performance_metrics() -> Dict[str, Dict[str, float]]:
+def clear_cache() -> None:
     """
-    Get performance metrics for all measured functions.
+    Vider le cache en mémoire.
+    """
+    with _cache_lock:
+        _memory_cache["data"].clear()
+        _memory_cache["expiry"].clear()
+    logging.debug("Cache en mémoire vidé")
+
+def run_in_thread(func: Callable) -> Callable:
+    """
+    Décorateur pour exécuter une fonction dans un thread séparé.
     
+    Args:
+        func: La fonction à exécuter dans un thread.
+        
     Returns:
-        Dictionary of performance metrics for each function.
+        La fonction décorée.
     """
-    metrics: Dict[str, Dict[str, float]] = {}
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        thread = threading.Thread(target=func, args=args, kwargs=kwargs)
+        thread.daemon = True
+        thread.start()
+        return thread
     
-    for func_name, execution_times in _performance_metrics.items():
-        if not execution_times:
-            continue
-        
-        metrics[func_name] = {
-            "count": len(execution_times),
-            "total": sum(execution_times),
-            "min": min(execution_times),
-            "max": max(execution_times),
-            "mean": statistics.mean(execution_times),
-            "median": statistics.median(execution_times)
-        }
-        
-        # Calculate standard deviation if there are at least 2 samples
-        if len(execution_times) >= 2:
-            metrics[func_name]["std_dev"] = statistics.stdev(execution_times)
-        
-    return metrics
+    return wrapper
 
-
-def clear_performance_metrics() -> None:
+class ThreadPool:
     """
-    Clear all performance metrics.
+    Gestionnaire de pool de threads pour exécuter des tâches en parallèle.
     """
-    global _performance_metrics
-    _performance_metrics = {}
-    logger.debug("Performance metrics cleared")
-
-
-class Timer:
-    """
-    Context manager for measuring execution time of a block of code.
+    _instance = None
+    _lock = threading.Lock()
     
-    Example:
-        with Timer("my_operation"):
-            # Code to measure
-            pass
-    """
-    def __init__(self, name: str, threshold: Optional[float] = None):
+    def __new__(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(ThreadPool, cls).__new__(cls)
+                cls._instance._executor = ThreadPoolExecutor(max_workers=10)
+            return cls._instance
+    
+    def submit(self, func: Callable, *args, **kwargs):
         """
-        Initialize the timer.
+        Soumettre une tâche au pool de threads.
         
         Args:
-            name: Name of the operation being timed.
-            threshold: Optional threshold in seconds. If the execution time exceeds
-                this threshold, a warning is logged.
+            func: La fonction à exécuter.
+            *args: Arguments positionnels pour la fonction.
+            **kwargs: Arguments nommés pour la fonction.
+            
+        Returns:
+            Un objet Future représentant l'exécution de la tâche.
         """
-        self.name = name
-        self.threshold = threshold
-        self.start_time = 0.0
+        return self._executor.submit(func, *args, **kwargs)
     
-    def __enter__(self) -> 'Timer':
-        self.start_time = time.time()
-        return self
-    
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        end_time = time.time()
-        execution_time = end_time - self.start_time
+    def shutdown(self, wait: bool = True):
+        """
+        Arrêter le pool de threads.
         
-        # Log the execution time
-        logger.debug(f"Timer {self.name}: {execution_time:.6f} seconds")
-        
-        # Check if execution time exceeds threshold
-        if self.threshold is not None and execution_time > self.threshold:
-            logger.warning(
-                f"Timer {self.name}: Execution time {execution_time:.6f} seconds "
-                f"exceeds threshold {self.threshold:.6f} seconds"
-            )
-        
-        # Store the execution time for metrics
-        if self.name not in _performance_metrics:
-            _performance_metrics[self.name] = []
-        
-        _performance_metrics[self.name].append(execution_time)
+        Args:
+            wait: Si True, attendre que toutes les tâches soient terminées.
+        """
+        self._executor.shutdown(wait=wait)
 
+def batch_process(items: list, process_func: Callable, batch_size: int = 100) -> list:
+    """
+    Traiter une liste d'éléments par lots pour améliorer les performances.
+    
+    Args:
+        items: Liste d'éléments à traiter.
+        process_func: Fonction de traitement à appliquer à chaque lot.
+        batch_size: Taille de chaque lot.
+        
+    Returns:
+        Liste des résultats combinés.
+    """
+    results = []
+    
+    # Traiter par lots
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
+        batch_results = process_func(batch)
+        results.extend(batch_results)
+    
+    return results
 
-def optimize_imports() -> None:
+def lazy_property(func: Callable) -> property:
     """
-    Optimize imports by preloading commonly used modules.
+    Décorateur pour créer une propriété calculée une seule fois et mise en cache.
     
-    This function can be called at application startup to preload
-    commonly used modules, reducing import time during runtime.
+    Args:
+        func: La fonction à transformer en propriété paresseuse.
+        
+    Returns:
+        Un descripteur de propriété.
     """
-    import os
-    import sys
-    import datetime
-    import json
-    import csv
-    import re
-    import math
-    import random
-    import sqlite3
-    import threading
-    import queue
-    import collections
-    import itertools
-    import functools
-    import operator
-    import copy
-    import pickle
-    import hashlib
-    import base64
-    import uuid
-    import tempfile
-    import shutil
-    import zipfile
-    import gzip
-    import tarfile
-    import io
-    import urllib.request
-    import urllib.parse
-    import urllib.error
-    import http.client
-    import email
-    import smtplib
-    import socket
-    import ssl
-    import xml.etree.ElementTree
-    import html
-    import webbrowser
-    import platform
-    import subprocess
-    import argparse
-    import configparser
-    import logging.handlers
-    import traceback
-    import inspect
-    import typing
-    import enum
-    import dataclasses
-    import pathlib
-    import contextlib
-    import concurrent.futures
-    import asyncio
+    attr_name = '_lazy_' + func.__name__
     
-    logger.debug("Common modules preloaded")
+    @property
+    @functools.wraps(func)
+    def _lazy_property(self):
+        if not hasattr(self, attr_name):
+            setattr(self, attr_name, func(self))
+        return getattr(self, attr_name)
+    
+    return _lazy_property

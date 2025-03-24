@@ -510,16 +510,20 @@ class ProductsView(QWidget):
         self.add_btn.setCursor(Qt.PointingHandCursor)
         self.add_btn.setStyleSheet("""
             QPushButton {
-                background-color: #3B82F6;
+                background-color: #0F172A;
                 color: #F8FAFC;
-                border: none;
+                border: 1px solid #1E293B;
                 border-radius: 4px;
                 padding: 8px 16px;
+                text-align: left;
             }
             QPushButton:hover {
-                background-color: #2563EB;
+                background-color: #1E293B;
             }
         """)
+        # Ajuster la taille de l'icône
+        self.add_btn.setIconSize(QSize(16, 16))
+        self.add_btn.clicked.connect(self.add_product)
         
         header_layout.addWidget(header_title)
         header_layout.addStretch()
@@ -643,3 +647,45 @@ class ProductsView(QWidget):
                 
                 # Show widget if both conditions are met
                 widget.setVisible(name_match and country_match)
+    
+    def add_product(self):
+        """
+        Open dialog to add a new product.
+        """
+        # Importer la classe AddProductDialog depuis stock_view
+        from views.stock_view import AddProductDialog
+        
+        # Créer et afficher la boîte de dialogue
+        dialog = AddProductDialog(self.db, self)
+        if dialog.exec():
+            try:
+                # Récupérer les données du produit
+                product_data = dialog.get_product_data()
+                
+                # Créer un nouvel objet Product
+                new_product = Product(
+                    name=product_data["name"],
+                    description=product_data["description"],
+                    production_cost=product_data["price"],
+                    initial_quantity=product_data["quantity"],
+                    production_time=product_data["production_time"] if "production_time" in product_data else 0.0
+                )
+                
+                # Ajouter l'image si disponible
+                if "image_paths" in product_data and product_data["image_paths"]:
+                    # Utiliser la première image comme image principale
+                    new_product.image_path = product_data["image_paths"][0]
+                
+                # Ajouter à la base de données
+                self.db.add(new_product)
+                self.db.commit()
+                
+                # Rafraîchir les données
+                self.refresh_data()
+                
+                QMessageBox.information(self, "Succès", "Produit ajouté avec succès.")
+                
+            except Exception as e:
+                self.db.rollback()
+                logging.error(f"Erreur lors de l'ajout du produit: {str(e)}")
+                QMessageBox.critical(self, "Erreur", f"Impossible d'ajouter le produit: {str(e)}")

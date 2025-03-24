@@ -1,389 +1,301 @@
 """
-Async utility module.
-This module provides utilities for asynchronous operations.
+Utilitaires pour les opérations asynchrones dans l'application.
 """
 import asyncio
-import concurrent.futures
+import threading
 import functools
 import logging
-import threading
-import time
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
+from typing import Callable, Any, Coroutine, TypeVar, Optional, List, Dict, Union
+from concurrent.futures import ThreadPoolExecutor
 
-logger = logging.getLogger(__name__)
-
-# Type variables for better type hinting
+# Type générique pour les résultats de fonctions
 T = TypeVar('T')
-R = TypeVar('R')
 
-# Thread pool executor for running blocking operations
-_thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+# Exécuteur de threads global pour les tâches asynchrones
+_thread_executor = ThreadPoolExecutor(max_workers=10)
 
+# Boucle d'événements asyncio pour le thread principal
+_main_event_loop = None
 
-def run_in_thread(func: Callable[..., R]) -> Callable[..., concurrent.futures.Future[R]]:
+def init_async_support():
     """
-    Decorator for running a function in a separate thread.
+    Initialiser le support asynchrone pour l'application.
+    Cette fonction doit être appelée au démarrage de l'application.
+    """
+    global _main_event_loop
+    
+    # Créer une nouvelle boucle d'événements
+    _main_event_loop = asyncio.new_event_loop()
+    
+    # Définir la boucle d'événements comme boucle par défaut pour le thread principal
+    asyncio.set_event_loop(_main_event_loop)
+    
+    logging.info("Support asynchrone initialisé")
+
+def run_async(coroutine: Coroutine) -> Any:
+    """
+    Exécuter une coroutine de manière synchrone.
     
     Args:
-        func: The function to run in a thread.
-    
-    Returns:
-        Decorated function that returns a Future.
-    
-    Example:
-        @run_in_thread
-        def my_blocking_function():
-            # Function to run in a thread
-            pass
-            
-        future = my_blocking_function()
-        result = future.result()  # Wait for the result
-    """
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> concurrent.futures.Future[R]:
-        return _thread_pool.submit(func, *args, **kwargs)
-    
-    return wrapper
-
-
-def run_async(func: Callable[..., R]) -> Callable[..., R]:
-    """
-    Decorator for running an async function in the current thread.
-    
-    Args:
-        func: The async function to run.
-    
-    Returns:
-        Decorated function that runs the async function and returns its result.
-    
-    Example:
-        @run_async
-        async def my_async_function():
-            # Async function
-            pass
-            
-        result = my_async_function()  # Run the async function
-    """
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> R:
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            # No event loop in this thread, create a new one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        coroutine: La coroutine à exécuter.
         
-        return loop.run_until_complete(func(*args, **kwargs))
-    
-    return wrapper
-
-
-def async_to_sync(func: Callable[..., asyncio.Future[R]]) -> Callable[..., R]:
+    Returns:
+        Le résultat de la coroutine.
     """
-    Decorator for converting an async function to a sync function.
+    global _main_event_loop
+    
+    if _main_event_loop is None:
+        init_async_support()
+    
+    # Exécuter la coroutine dans la boucle d'événements
+    return asyncio.run_coroutine_threadsafe(coroutine, _main_event_loop).result()
+
+def async_to_sync(func: Callable[..., Coroutine]) -> Callable[..., Any]:
+    """
+    Décorateur pour convertir une fonction asynchrone en fonction synchrone.
     
     Args:
-        func: The async function to convert.
-    
-    Returns:
-        Decorated function that runs the async function and returns its result.
-    
-    Example:
-        @async_to_sync
-        async def my_async_function():
-            # Async function
-            pass
-            
-        result = my_async_function()  # Run the async function synchronously
-    """
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> R:
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            # No event loop in this thread, create a new one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        func: La fonction asynchrone à convertir.
         
-        return loop.run_until_complete(func(*args, **kwargs))
+    Returns:
+        Une fonction synchrone qui exécute la fonction asynchrone.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return run_async(func(*args, **kwargs))
     
     return wrapper
 
-
-def sync_to_async(func: Callable[..., R]) -> Callable[..., asyncio.Future[R]]:
+def run_in_executor(func: Callable[..., T]) -> Callable[..., Coroutine[Any, Any, T]]:
     """
-    Decorator for converting a sync function to an async function.
+    Décorateur pour exécuter une fonction bloquante dans un pool de threads.
     
     Args:
-        func: The sync function to convert.
-    
+        func: La fonction bloquante à exécuter.
+        
     Returns:
-        Decorated async function that runs the sync function in a thread pool.
-    
-    Example:
-        @sync_to_async
-        def my_sync_function():
-            # Sync function
-            pass
-            
-        await my_sync_function()  # Run the sync function asynchronously
+        Une coroutine qui exécute la fonction dans un pool de threads.
     """
     @functools.wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> R:
+    async def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            _thread_pool, functools.partial(func, *args, **kwargs)
+            _thread_executor,
+            functools.partial(func, *args, **kwargs)
         )
     
     return wrapper
 
-
-class AsyncTimer:
+class AsyncTask:
     """
-    Context manager for measuring execution time of an async block of code.
-    
-    Example:
-        async with AsyncTimer("my_operation"):
-            # Async code to measure
-            pass
+    Classe pour gérer une tâche asynchrone avec des callbacks.
     """
-    def __init__(self, name: str, threshold: Optional[float] = None):
+    def __init__(self, coroutine: Coroutine, on_success: Optional[Callable[[Any], None]] = None,
+                 on_error: Optional[Callable[[Exception], None]] = None):
         """
-        Initialize the timer.
+        Initialiser une tâche asynchrone.
         
         Args:
-            name: Name of the operation being timed.
-            threshold: Optional threshold in seconds. If the execution time exceeds
-                this threshold, a warning is logged.
+            coroutine: La coroutine à exécuter.
+            on_success: Callback appelé en cas de succès avec le résultat.
+            on_error: Callback appelé en cas d'erreur avec l'exception.
         """
-        self.name = name
-        self.threshold = threshold
-        self.start_time = 0.0
+        self.coroutine = coroutine
+        self.on_success = on_success
+        self.on_error = on_error
+        self.task = None
     
-    async def __aenter__(self) -> 'AsyncTimer':
-        self.start_time = time.time()
-        return self
-    
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        end_time = time.time()
-        execution_time = end_time - self.start_time
+    def start(self):
+        """
+        Démarrer la tâche asynchrone.
+        """
+        global _main_event_loop
         
-        # Log the execution time
-        logger.debug(f"AsyncTimer {self.name}: {execution_time:.6f} seconds")
+        if _main_event_loop is None:
+            init_async_support()
         
-        # Check if execution time exceeds threshold
-        if self.threshold is not None and execution_time > self.threshold:
-            logger.warning(
-                f"AsyncTimer {self.name}: Execution time {execution_time:.6f} seconds "
-                f"exceeds threshold {self.threshold:.6f} seconds"
-            )
-
-
-class BackgroundTask:
-    """
-    Class for running a task in the background.
+        # Créer et démarrer la tâche
+        self.task = asyncio.run_coroutine_threadsafe(self._run(), _main_event_loop)
     
-    Example:
-        task = BackgroundTask(my_function, args=(1, 2), kwargs={"key": "value"})
-        task.start()
-        # Do other work
-        result = task.get_result()  # Wait for the result
-    """
-    def __init__(
-        self,
-        func: Callable[..., R],
-        args: Optional[tuple] = None,
-        kwargs: Optional[dict] = None,
-        daemon: bool = True
-    ):
+    async def _run(self):
         """
-        Initialize the background task.
-        
-        Args:
-            func: The function to run in the background.
-            args: Positional arguments to pass to the function.
-            kwargs: Keyword arguments to pass to the function.
-            daemon: Whether the thread should be a daemon thread.
-        """
-        self.func = func
-        self.args = args or ()
-        self.kwargs = kwargs or {}
-        self.daemon = daemon
-        self.result: Optional[R] = None
-        self.exception: Optional[Exception] = None
-        self.thread: Optional[threading.Thread] = None
-        self.completed = threading.Event()
-    
-    def _run(self) -> None:
-        """
-        Run the function and store the result or exception.
+        Exécuter la coroutine et appeler les callbacks appropriés.
         """
         try:
-            self.result = self.func(*self.args, **self.kwargs)
+            result = await self.coroutine
+            if self.on_success:
+                self.on_success(result)
+            return result
         except Exception as e:
-            self.exception = e
-        finally:
-            self.completed.set()
+            logging.error(f"Erreur dans la tâche asynchrone: {str(e)}")
+            if self.on_error:
+                self.on_error(e)
+            raise
     
-    def start(self) -> None:
+    def cancel(self):
         """
-        Start the background task.
+        Annuler la tâche asynchrone si elle est en cours d'exécution.
         """
-        if self.thread is not None:
-            raise RuntimeError("Task already started")
-        
-        self.thread = threading.Thread(target=self._run)
-        self.thread.daemon = self.daemon
-        self.thread.start()
-    
-    def is_completed(self) -> bool:
-        """
-        Check if the task is completed.
-        
-        Returns:
-            True if the task is completed, False otherwise.
-        """
-        return self.completed.is_set()
-    
-    def wait(self, timeout: Optional[float] = None) -> bool:
-        """
-        Wait for the task to complete.
-        
-        Args:
-            timeout: Optional timeout in seconds.
-        
-        Returns:
-            True if the task completed, False if the timeout expired.
-        """
-        return self.completed.wait(timeout)
-    
-    def get_result(self, timeout: Optional[float] = None) -> R:
-        """
-        Get the result of the task.
-        
-        Args:
-            timeout: Optional timeout in seconds.
-        
-        Returns:
-            The result of the task.
-        
-        Raises:
-            TimeoutError: If the timeout expired.
-            Exception: If the task raised an exception.
-        """
-        if not self.wait(timeout):
-            raise TimeoutError(f"Task {self.func.__name__} timed out")
-        
-        if self.exception is not None:
-            raise self.exception
-        
-        return cast(R, self.result)
-
+        if self.task and not self.task.done():
+            self.task.cancel()
 
 class AsyncQueue:
     """
-    Queue for asynchronous processing.
-    
-    Example:
-        queue = AsyncQueue()
-        
-        # Producer
-        await queue.put(item)
-        
-        # Consumer
-        item = await queue.get()
-        await queue.task_done()
+    File d'attente asynchrone pour traiter des tâches en arrière-plan.
     """
-    def __init__(self, maxsize: int = 0):
+    def __init__(self, max_workers: int = 5):
         """
-        Initialize the queue.
+        Initialiser la file d'attente asynchrone.
         
         Args:
-            maxsize: Maximum size of the queue. If 0, the queue size is unlimited.
+            max_workers: Nombre maximum de travailleurs simultanés.
         """
-        self.queue = asyncio.Queue(maxsize)
+        self.queue = asyncio.Queue()
+        self.max_workers = max_workers
+        self.workers = []
+        self.running = False
     
-    async def put(self, item: Any) -> None:
+    async def worker(self):
         """
-        Put an item into the queue.
+        Travailleur qui traite les tâches de la file d'attente.
+        """
+        while self.running:
+            try:
+                # Récupérer une tâche de la file d'attente
+                task, args, kwargs, future = await self.queue.get()
+                
+                try:
+                    # Exécuter la tâche
+                    result = await task(*args, **kwargs)
+                    future.set_result(result)
+                except Exception as e:
+                    future.set_exception(e)
+                finally:
+                    # Marquer la tâche comme terminée
+                    self.queue.task_done()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logging.error(f"Erreur dans le travailleur de la file d'attente: {str(e)}")
+    
+    def start(self):
+        """
+        Démarrer la file d'attente.
+        """
+        global _main_event_loop
+        
+        if _main_event_loop is None:
+            init_async_support()
+        
+        self.running = True
+        
+        # Créer les travailleurs
+        for _ in range(self.max_workers):
+            worker_task = asyncio.run_coroutine_threadsafe(self.worker(), _main_event_loop)
+            self.workers.append(worker_task)
+    
+    def stop(self):
+        """
+        Arrêter la file d'attente.
+        """
+        self.running = False
+        
+        # Annuler tous les travailleurs
+        for worker in self.workers:
+            worker.cancel()
+        
+        self.workers = []
+    
+    def enqueue(self, task: Callable[..., Coroutine], *args, **kwargs) -> asyncio.Future:
+        """
+        Ajouter une tâche à la file d'attente.
         
         Args:
-            item: The item to put into the queue.
-        """
-        await self.queue.put(item)
-    
-    async def get(self) -> Any:
-        """
-        Get an item from the queue.
-        
+            task: La fonction asynchrone à exécuter.
+            *args: Arguments positionnels pour la fonction.
+            **kwargs: Arguments nommés pour la fonction.
+            
         Returns:
-            The item from the queue.
+            Un objet Future représentant le résultat de la tâche.
         """
-        return await self.queue.get()
-    
-    async def task_done(self) -> None:
-        """
-        Indicate that a formerly enqueued task is complete.
-        """
-        self.queue.task_done()
-    
-    async def join(self) -> None:
-        """
-        Block until all items in the queue have been processed.
-        """
-        await self.queue.join()
-    
-    def qsize(self) -> int:
-        """
-        Return the approximate size of the queue.
+        global _main_event_loop
         
-        Returns:
-            The approximate size of the queue.
-        """
-        return self.queue.qsize()
-    
-    def empty(self) -> bool:
-        """
-        Return True if the queue is empty, False otherwise.
+        if _main_event_loop is None:
+            init_async_support()
         
-        Returns:
-            True if the queue is empty, False otherwise.
-        """
-        return self.queue.empty()
-    
-    def full(self) -> bool:
-        """
-        Return True if the queue is full, False otherwise.
+        # Créer un Future pour le résultat
+        future = asyncio.Future(loop=_main_event_loop)
         
-        Returns:
-            True if the queue is full, False otherwise.
-        """
-        return self.queue.full()
+        # Ajouter la tâche à la file d'attente
+        asyncio.run_coroutine_threadsafe(
+            self.queue.put((task, args, kwargs, future)),
+            _main_event_loop
+        )
+        
+        return future
 
-
-async def gather_with_concurrency(
-    n: int,
-    *tasks: asyncio.Future,
-    return_exceptions: bool = False
-) -> List[Any]:
+async def gather_with_concurrency(limit: int, *tasks: Coroutine) -> List[Any]:
     """
-    Run tasks with a concurrency limit.
+    Exécuter plusieurs coroutines avec une limite de concurrence.
     
     Args:
-        n: Maximum number of tasks to run concurrently.
-        *tasks: Tasks to run.
-        return_exceptions: Whether to return exceptions or raise them.
-    
+        limit: Nombre maximum de coroutines à exécuter simultanément.
+        *tasks: Les coroutines à exécuter.
+        
     Returns:
-        List of results from the tasks.
+        Liste des résultats des coroutines.
     """
-    semaphore = asyncio.Semaphore(n)
+    semaphore = asyncio.Semaphore(limit)
     
-    async def run_task(task: asyncio.Future) -> Any:
+    async def semaphore_task(task):
         async with semaphore:
             return await task
     
-    return await asyncio.gather(
-        *(run_task(task) for task in tasks),
-        return_exceptions=return_exceptions
-    )
+    return await asyncio.gather(*(semaphore_task(task) for task in tasks))
+
+async def wait_for_with_timeout(tasks: List[Coroutine], timeout: float) -> Dict[str, Union[List[Any], List[Exception]]]:
+    """
+    Attendre l'exécution de plusieurs coroutines avec un timeout.
+    
+    Args:
+        tasks: Liste des coroutines à exécuter.
+        timeout: Timeout en secondes.
+        
+    Returns:
+        Dictionnaire contenant les résultats et les erreurs.
+    """
+    # Créer des tâches avec un timeout
+    tasks_with_timeout = [asyncio.wait_for(task, timeout) for task in tasks]
+    
+    # Exécuter les tâches et récupérer les résultats/erreurs
+    results = []
+    errors = []
+    
+    for i, task in enumerate(tasks_with_timeout):
+        try:
+            result = await task
+            results.append(result)
+        except Exception as e:
+            errors.append(e)
+    
+    return {
+        "results": results,
+        "errors": errors
+    }
+
+def create_task(coroutine: Coroutine) -> asyncio.Task:
+    """
+    Créer une tâche asynchrone dans la boucle d'événements principale.
+    
+    Args:
+        coroutine: La coroutine à exécuter.
+        
+    Returns:
+        La tâche créée.
+    """
+    global _main_event_loop
+    
+    if _main_event_loop is None:
+        init_async_support()
+    
+    return asyncio.run_coroutine_threadsafe(coroutine, _main_event_loop)

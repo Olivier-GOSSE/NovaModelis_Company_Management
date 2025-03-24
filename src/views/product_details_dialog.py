@@ -186,16 +186,19 @@ class ProductDetailsDialog(QDialog):
         add_component_btn.setCursor(Qt.PointingHandCursor)
         add_component_btn.setStyleSheet("""
             QPushButton {
-                background-color: #3B82F6;
+                background-color: #0F172A;
                 color: #F8FAFC;
-                border: none;
-                border-radius: 12px;
+                border: 1px solid #1E293B;
+                border-radius: 4px;
                 padding: 8px 16px;
+                text-align: left;
             }
             QPushButton:hover {
-                background-color: #2563EB;
+                background-color: #1E293B;
             }
         """)
+        # Ajuster la taille de l'icône
+        add_component_btn.setIconSize(QSize(16, 16))
         add_component_btn.clicked.connect(self.add_component)
         
         components_layout.addWidget(add_component_btn)
