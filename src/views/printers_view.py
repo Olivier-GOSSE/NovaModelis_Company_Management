@@ -144,6 +144,13 @@ class PrinterDetailsDialog(QDialog):
         self.api_key_input = QLineEdit()
         form_layout.addRow("API Key:", self.api_key_input)
         
+        # Power consumption
+        self.consumption_input = QSpinBox()
+        self.consumption_input.setRange(0, 2000)
+        self.consumption_input.setSuffix(" W")
+        self.consumption_input.setToolTip("Consommation électrique de l'imprimante en watts")
+        form_layout.addRow("Consommation:", self.consumption_input)
+        
         # Notes
         self.notes_input = QLineEdit()
         form_layout.addRow("Notes:", self.notes_input)
@@ -189,6 +196,10 @@ class PrinterDetailsDialog(QDialog):
         
         if self.printer.api_key:
             self.api_key_input.setText(self.printer.api_key)
+        
+        # Set power consumption if available
+        if hasattr(self.printer, 'power_consumption') and self.printer.power_consumption is not None:
+            self.consumption_input.setValue(self.printer.power_consumption)
         
         if self.printer.notes:
             self.notes_input.setText(self.printer.notes)
@@ -239,6 +250,7 @@ class PrinterDetailsDialog(QDialog):
             printer.status = self.status_combo.currentData()
             printer.ip_address = self.ip_input.text().strip() or None
             printer.api_key = self.api_key_input.text().strip() or None
+            printer.power_consumption = self.consumption_input.value()
             printer.notes = self.notes_input.text().strip() or None
             printer.updated_at = datetime.datetime.utcnow()
             
@@ -506,7 +518,7 @@ class PrintersView(QWidget):
                     }
                 """)
                 edit_btn.setToolTip("Edit Printer")
-                edit_btn.clicked.connect(lambda checked, p=printer: self.edit_printer(p))
+                edit_btn.clicked.connect(lambda _=False, p=printer: self.edit_printer(p))
                 
                 # Delete button
                 delete_btn = QPushButton()
@@ -524,7 +536,7 @@ class PrintersView(QWidget):
                     }
                 """)
                 delete_btn.setToolTip("Delete Printer")
-                delete_btn.clicked.connect(lambda checked, p=printer: self.delete_printer(p))
+                delete_btn.clicked.connect(lambda _=False, p=printer: self.delete_printer(p))
                 
                 actions_layout.addWidget(edit_btn)
                 actions_layout.addWidget(delete_btn)
@@ -584,6 +596,8 @@ class PrintersView(QWidget):
                     }
                 """)
                 view_btn.setToolTip("View Job")
+                # Connecter le bouton à une fonction qui sera implémentée plus tard
+                view_btn.clicked.connect(lambda _=False, j=job: self.view_job(j))
                 
                 # Pause/Resume button
                 pause_btn = QPushButton()
@@ -601,6 +615,8 @@ class PrintersView(QWidget):
                     }
                 """)
                 pause_btn.setToolTip("Pause Job")
+                # Connecter le bouton à une fonction qui sera implémentée plus tard
+                pause_btn.clicked.connect(lambda _=False, j=job: self.pause_job(j))
                 
                 # Cancel button
                 cancel_btn = QPushButton()
@@ -618,6 +634,8 @@ class PrintersView(QWidget):
                     }
                 """)
                 cancel_btn.setToolTip("Cancel Job")
+                # Connecter le bouton à une fonction qui sera implémentée plus tard
+                cancel_btn.clicked.connect(lambda _=False, j=job: self.cancel_job(j))
                 
                 actions_layout.addWidget(view_btn)
                 actions_layout.addWidget(pause_btn)
@@ -703,3 +721,33 @@ class PrintersView(QWidget):
             except Exception as e:
                 logging.error(f"Error deleting printer: {str(e)}")
                 QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
+    
+    def view_job(self, job):
+        """
+        View details of a print job.
+        
+        Args:
+            job: The print job to view.
+        """
+        # Cette méthode sera implémentée plus tard
+        QMessageBox.information(self, "Information", f"Affichage des détails du travail: {job.job_name}")
+    
+    def pause_job(self, job):
+        """
+        Pause a print job.
+        
+        Args:
+            job: The print job to pause.
+        """
+        # Cette méthode sera implémentée plus tard
+        QMessageBox.information(self, "Information", f"Pause du travail: {job.job_name}")
+    
+    def cancel_job(self, job):
+        """
+        Cancel a print job.
+        
+        Args:
+            job: The print job to cancel.
+        """
+        # Cette méthode sera implémentée plus tard
+        QMessageBox.information(self, "Information", f"Annulation du travail: {job.job_name}")
